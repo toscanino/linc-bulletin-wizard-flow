@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 
 interface Employee {
   id: string;
@@ -53,9 +54,8 @@ const Index = () => {
   const [endDate, setEndDate] = useState("");
   const [comments, setComments] = useState("");
 
-  // Alternative wizard state
-  const [altStartDate, setAltStartDate] = useState<Date | undefined>();
-  const [altEndDate, setAltEndDate] = useState<Date | undefined>();
+  // Alternative wizard state with date range
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [altComments, setAltComments] = useState("");
 
   const calculateDays = (start: string, end: string) => {
@@ -66,14 +66,14 @@ const Index = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   };
 
-  const calculateAltDays = (start: Date | undefined, end: Date | undefined) => {
-    if (!start || !end) return 0;
-    const diffTime = Math.abs(end.getTime() - start.getTime());
+  const calculateRangeDays = (range: DateRange | undefined) => {
+    if (!range?.from || !range?.to) return 0;
+    const diffTime = Math.abs(range.to.getTime() - range.from.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   };
 
   const days = calculateDays(startDate, endDate);
-  const altDays = calculateAltDays(altStartDate, altEndDate);
+  const rangeDays = calculateRangeDays(dateRange);
 
   const handleNextStep = () => {
     if (currentStep < 3) {
@@ -105,14 +105,14 @@ const Index = () => {
   };
 
   const handleAddAltEVP = () => {
-    if (selectedEmployee && altStartDate && altEndDate) {
+    if (selectedEmployee && dateRange?.from && dateRange?.to) {
       const newEVP: EVP = {
         id: Date.now().toString(),
         employeeId: selectedEmployee.id,
         type: "conges-payes", // Fixed to paid leave for this flow
-        startDate: altStartDate.toISOString().split('T')[0],
-        endDate: altEndDate.toISOString().split('T')[0],
-        days: altDays,
+        startDate: dateRange.from.toISOString().split('T')[0],
+        endDate: dateRange.to.toISOString().split('T')[0],
+        days: rangeDays,
         comments: altComments,
         status: "confirmed"
       };
@@ -132,8 +132,7 @@ const Index = () => {
 
   const resetAltWizard = () => {
     setShowAltWizard(false);
-    setAltStartDate(undefined);
-    setAltEndDate(undefined);
+    setDateRange(undefined);
     setAltComments("");
   };
 
@@ -509,66 +508,46 @@ const Index = () => {
             {/* Date Range Picker */}
             <div className="space-y-4">
               <Label>Période d'absence</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Date de début</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal mt-1",
-                          !altStartDate && "text-muted-foreground"
-                        )}
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {altStartDate ? format(altStartDate, "d MMM yyyy", { locale: fr }) : "Sélectionner"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={altStartDate}
-                        onSelect={setAltStartDate}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Date de fin</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal mt-1",
-                          !altEndDate && "text-muted-foreground"
-                        )}
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {altEndDate ? format(altEndDate, "d MMM yyyy", { locale: fr }) : "Sélectionner"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={altEndDate}
-                        onSelect={setAltEndDate}
-                        initialFocus
-                        className="pointer-events-auto"
-                        disabled={(date) => altStartDate ? date < altStartDate : false}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dateRange && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "d MMM", { locale: fr })} -{" "}
+                          {format(dateRange.to, "d MMM yyyy", { locale: fr })}
+                        </>
+                      ) : (
+                        format(dateRange.from, "d MMM yyyy", { locale: fr })
+                      )
+                    ) : (
+                      "Sélectionner une période"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
               
-              {altDays > 0 && (
+              {rangeDays > 0 && (
                 <div className="bg-primary/10 p-3 rounded-lg">
                   <p className="text-sm font-medium">
-                    Durée: {altDays} jour{altDays > 1 ? 's' : ''} de congés payés
+                    Durée: {rangeDays} jour{rangeDays > 1 ? 's' : ''} de congés payés
                   </p>
                 </div>
               )}
@@ -595,7 +574,7 @@ const Index = () => {
             </Button>
             <Button 
               onClick={handleAddAltEVP}
-              disabled={!altStartDate || !altEndDate}
+              disabled={!dateRange?.from || !dateRange?.to}
               className="bg-primary hover:bg-primary/90"
             >
               Ajouter les congés
