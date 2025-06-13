@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Plus, Calendar, Users, FileText, Edit, Trash2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface Employee {
   id: string;
@@ -39,6 +43,7 @@ const employees: Employee[] = [
 const Index = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showWizard, setShowWizard] = useState(false);
+  const [showAltWizard, setShowAltWizard] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [evpList, setEvpList] = useState<EVP[]>([]);
   
@@ -48,6 +53,11 @@ const Index = () => {
   const [endDate, setEndDate] = useState("");
   const [comments, setComments] = useState("");
 
+  // Alternative wizard state
+  const [altStartDate, setAltStartDate] = useState<Date | undefined>();
+  const [altEndDate, setAltEndDate] = useState<Date | undefined>();
+  const [altComments, setAltComments] = useState("");
+
   const calculateDays = (start: string, end: string) => {
     if (!start || !end) return 0;
     const startDay = new Date(start);
@@ -56,7 +66,14 @@ const Index = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   };
 
+  const calculateAltDays = (start: Date | undefined, end: Date | undefined) => {
+    if (!start || !end) return 0;
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  };
+
   const days = calculateDays(startDate, endDate);
+  const altDays = calculateAltDays(altStartDate, altEndDate);
 
   const handleNextStep = () => {
     if (currentStep < 3) {
@@ -87,6 +104,23 @@ const Index = () => {
     }
   };
 
+  const handleAddAltEVP = () => {
+    if (selectedEmployee && altStartDate && altEndDate) {
+      const newEVP: EVP = {
+        id: Date.now().toString(),
+        employeeId: selectedEmployee.id,
+        type: "conges-payes", // Fixed to paid leave for this flow
+        startDate: altStartDate.toISOString().split('T')[0],
+        endDate: altEndDate.toISOString().split('T')[0],
+        days: altDays,
+        comments: altComments,
+        status: "confirmed"
+      };
+      setEvpList([...evpList, newEVP]);
+      resetAltWizard();
+    }
+  };
+
   const resetWizard = () => {
     setShowWizard(false);
     setCurrentStep(1);
@@ -96,9 +130,21 @@ const Index = () => {
     setEvpType("conges-payes");
   };
 
+  const resetAltWizard = () => {
+    setShowAltWizard(false);
+    setAltStartDate(undefined);
+    setAltEndDate(undefined);
+    setAltComments("");
+  };
+
   const openWizard = (employee: Employee) => {
     setSelectedEmployee(employee);
     setShowWizard(true);
+  };
+
+  const openAltWizard = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setShowAltWizard(true);
   };
 
   const deleteEVP = (evpId: string) => {
@@ -188,10 +234,16 @@ const Index = () => {
                       <CardTitle>{selectedEmployee.name}</CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">Éléments Variables de Paie</p>
                     </div>
-                    <Button onClick={() => openWizard(selectedEmployee)} className="bg-primary hover:bg-primary/90">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Ajouter un EVP
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button onClick={() => openWizard(selectedEmployee)} className="bg-primary hover:bg-primary/90">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ajouter un EVP
+                      </Button>
+                      <Button onClick={() => openAltWizard(selectedEmployee)} variant="outline">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Ajout rapide
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -260,7 +312,7 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Wizard Modal */}
+      {/* Original Wizard Modal */}
       <Dialog open={showWizard} onOpenChange={(open) => !open && resetWizard()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -439,6 +491,115 @@ const Index = () => {
                 </Button>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alternative Quick Wizard Modal */}
+      <Dialog open={showAltWizard} onOpenChange={(open) => !open && resetAltWizard()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Ajout rapide - Congés payés</DialogTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              Employé: <span className="font-medium">{selectedEmployee?.name}</span>
+            </p>
+          </DialogHeader>
+
+          <div className="py-6 space-y-6">
+            {/* Date Range Picker */}
+            <div className="space-y-4">
+              <Label>Période d'absence</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Date de début</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal mt-1",
+                          !altStartDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {altStartDate ? format(altStartDate, "d MMM yyyy", { locale: fr }) : "Sélectionner"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={altStartDate}
+                        onSelect={setAltStartDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Date de fin</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal mt-1",
+                          !altEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {altEndDate ? format(altEndDate, "d MMM yyyy", { locale: fr }) : "Sélectionner"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={altEndDate}
+                        onSelect={setAltEndDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                        disabled={(date) => altStartDate ? date < altStartDate : false}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              
+              {altDays > 0 && (
+                <div className="bg-primary/10 p-3 rounded-lg">
+                  <p className="text-sm font-medium">
+                    Durée: {altDays} jour{altDays > 1 ? 's' : ''} de congés payés
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Optional Comments */}
+            <div>
+              <Label htmlFor="alt-comments">Commentaires (optionnel)</Label>
+              <Textarea
+                id="alt-comments"
+                placeholder="Ajoutez une note si nécessaire..."
+                value={altComments}
+                onChange={(e) => setAltComments(e.target.value)}
+                className="mt-1"
+                rows={2}
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="ghost" onClick={resetAltWizard}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleAddAltEVP}
+              disabled={!altStartDate || !altEndDate}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Ajouter les congés
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
