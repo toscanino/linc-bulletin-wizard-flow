@@ -72,6 +72,7 @@ const Index = () => {
   };
 
   const rangeDays = calculateRangeDays();
+  // Fix: Use the actual number of ranges after merging, not before
   const rangePeriods = selectedRanges.length;
 
   const handleAddAltEVP = () => {
