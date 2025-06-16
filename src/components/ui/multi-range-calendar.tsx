@@ -58,7 +58,7 @@ export function MultiRangeCalendar({
     );
   };
 
-  const mergeConsecutiveRanges = (ranges: DateRange[]): DateRange[] => {
+  const mergeOverlappingRanges = (ranges: DateRange[]): DateRange[] => {
     if (ranges.length <= 1) return ranges;
 
     // Filter and sort full-day ranges by start date
@@ -80,9 +80,12 @@ export function MultiRangeCalendar({
       const dayAfterCurrent = new Date(currentRange.to);
       dayAfterCurrent.setDate(dayAfterCurrent.getDate() + 1);
       
-      // If next range starts exactly one day after current range ends, merge them
-      if (nextRange.from.getTime() === dayAfterCurrent.getTime()) {
-        currentRange.to = nextRange.to;
+      // If next range starts before or on the day after current range ends (overlapping or consecutive)
+      if (nextRange.from <= dayAfterCurrent) {
+        // Merge by extending the current range to the maximum end date
+        if (nextRange.to > currentRange.to) {
+          currentRange.to = nextRange.to;
+        }
       } else {
         // Can't merge, push current range and start new one
         merged.push(currentRange);
@@ -138,8 +141,8 @@ export function MultiRangeCalendar({
         updatedRanges.splice(exactSingleDayIndex, 1); // Remove
       }
 
-      // Apply merging after changes - this will merge any consecutive full-day ranges
-      const mergedRanges = mergeConsecutiveRanges(updatedRanges);
+      // Apply merging after changes - this will merge any overlapping ranges
+      const mergedRanges = mergeOverlappingRanges(updatedRanges);
       onRangesChange(mergedRanges);
       setFirstClickDate(null);
       return;
@@ -163,8 +166,8 @@ export function MultiRangeCalendar({
       };
       updatedRanges.push(newRange);
       
-      // Apply merging after changes - this will merge any consecutive full-day ranges
-      const mergedRanges = mergeConsecutiveRanges(updatedRanges);
+      // Apply merging after changes - this will merge any overlapping ranges
+      const mergedRanges = mergeOverlappingRanges(updatedRanges);
       onRangesChange(mergedRanges);
       setFirstClickDate(null);
       return;
@@ -179,8 +182,8 @@ export function MultiRangeCalendar({
           to: date,
           dayType: "full",
         };
-        // Apply merging - this will automatically merge with adjacent ranges
-        const mergedRanges = mergeConsecutiveRanges([...selectedRanges, newRange]);
+        // Apply merging - this will automatically merge with overlapping ranges
+        const mergedRanges = mergeOverlappingRanges([...selectedRanges, newRange]);
         onRangesChange(mergedRanges);
         setFirstClickDate(null);
         return;
@@ -191,8 +194,8 @@ export function MultiRangeCalendar({
           to: date,
           dayType: "full",
         };
-        // Apply merging - this will automatically merge with adjacent ranges
-        const mergedRanges = mergeConsecutiveRanges([...selectedRanges, newRange]);
+        // Apply merging - this will automatically merge with overlapping ranges
+        const mergedRanges = mergeOverlappingRanges([...selectedRanges, newRange]);
         onRangesChange(mergedRanges);
         setFirstClickDate(null);
         return;
@@ -206,8 +209,8 @@ export function MultiRangeCalendar({
       dayType: "full",
     };
     
-    // Apply merging - this will automatically merge with adjacent ranges
-    const mergedRanges = mergeConsecutiveRanges([...selectedRanges, newRange]);
+    // Apply merging - this will automatically merge with overlapping ranges
+    const mergedRanges = mergeOverlappingRanges([...selectedRanges, newRange]);
     onRangesChange(mergedRanges);
     setFirstClickDate(date); // Set for potential range creation
   };

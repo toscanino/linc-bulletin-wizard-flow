@@ -75,7 +75,7 @@ const Index = () => {
     return count;
   };
 
-  const mergeConsecutiveRanges = (ranges: DateRange[]): DateRange[] => {
+  const mergeOverlappingRanges = (ranges: DateRange[]): DateRange[] => {
     if (ranges.length <= 1) return ranges;
 
     // Filter and sort full-day ranges by start date
@@ -97,9 +97,12 @@ const Index = () => {
       const dayAfterCurrent = new Date(currentRange.to);
       dayAfterCurrent.setDate(dayAfterCurrent.getDate() + 1);
       
-      // If next range starts exactly one day after current range ends, merge them
-      if (nextRange.from.getTime() === dayAfterCurrent.getTime()) {
-        currentRange.to = nextRange.to;
+      // If next range starts before or on the day after current range ends (overlapping or consecutive)
+      if (nextRange.from <= dayAfterCurrent) {
+        // Merge by extending the current range to the maximum end date
+        if (nextRange.to > currentRange.to) {
+          currentRange.to = nextRange.to;
+        }
       } else {
         // Can't merge, push current range and start new one
         merged.push(currentRange);
@@ -137,7 +140,7 @@ const Index = () => {
   const generateYAML = () => {
     if (!selectedEmployee || selectedRanges.length === 0) return "";
     
-    const mergedRanges = mergeConsecutiveRanges(selectedRanges);
+    const mergedRanges = mergeOverlappingRanges(selectedRanges);
     let yaml = "";
     
     mergedRanges.forEach((range, index) => {
@@ -148,9 +151,7 @@ const Index = () => {
       if (range.from.getTime() === range.to.getTime()) {
         days = (range.dayType === "half-morning" || range.dayType === "half-afternoon") ? 0.5 : 1;
       } else {
-        const timeDiff = range.to.getTime() - range.from.getTime();
-        const daysDiff = Math.round(timeDiff / (1000 * 60 * 60 * 24));
-        days = daysDiff + 1;
+        days = countWeekdaysInRange(range.from, range.to);
       }
       
       const typeKey = altEvpType === "conges-payes" ? "CP" : altEvpType === "heures-sup" ? "HS" : "PRIME";
@@ -177,7 +178,7 @@ const Index = () => {
   const generatePreviewText = () => {
     if (selectedRanges.length === 0) return "Sélectionnez des dates pour voir l'aperçu";
     
-    const mergedRanges = mergeConsecutiveRanges(selectedRanges);
+    const mergedRanges = mergeOverlappingRanges(selectedRanges);
     
     return mergedRanges.map((range, index) => {
       const startDate = format(range.from, "dd/MM/yyyy");
@@ -206,7 +207,7 @@ const Index = () => {
 
   const rangeDays = calculateRangeDays();
   // Fix: Get the actual merged ranges to count periods correctly
-  const mergedRanges = mergeConsecutiveRanges(selectedRanges);
+  const mergedRanges = mergeOverlappingRanges(selectedRanges);
   const rangePeriods = mergedRanges.length;
 
   const handleAddEVP = () => {
