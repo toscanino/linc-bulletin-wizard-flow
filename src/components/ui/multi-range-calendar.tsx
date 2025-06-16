@@ -48,8 +48,9 @@ export function MultiRangeCalendar({
   const handleDayClick = (date: Date) => {
     if (isWeekend(date)) return;
 
-    // If we're not starting a range, check if this is a single day that already exists
+    // If we're starting a new range
     if (!rangeStart) {
+      // Check if this date is already selected as a single day
       const existingRangeIndex = selectedRanges.findIndex(range => 
         range.from.getTime() === date.getTime() && range.to.getTime() === date.getTime()
       );
@@ -71,7 +72,7 @@ export function MultiRangeCalendar({
         return;
       }
 
-      // Start a new range
+      // Just start the range, don't create a selection yet
       setRangeStart(date);
       return;
     }
@@ -182,7 +183,8 @@ export function MultiRangeCalendar({
         {/* Day number */}
         <span className={cn(
           "relative z-10 font-medium",
-          isSelected ? "text-primary-foreground" : "text-foreground"
+          isSelected ? "text-primary-foreground" : 
+          (isInCurrentRange && !isSelected) ? "text-primary-foreground" : "text-foreground"
         )}>
           {format(date, "d")}
         </span>
