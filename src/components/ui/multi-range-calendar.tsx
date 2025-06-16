@@ -47,7 +47,7 @@ export function MultiRangeCalendar({
   const handleDayClick = (date: Date) => {
     if (isWeekend(date)) return;
 
-    // First check if this date is exactly a single day range (for cycling behavior)
+    // Check if this exact date exists as a single day range
     const exactSingleDayIndex = selectedRanges.findIndex(range => 
       range.from.getTime() === date.getTime() && range.to.getTime() === date.getTime()
     );
@@ -71,14 +71,23 @@ export function MultiRangeCalendar({
     }
 
     // Check if this date is part of a multi-day range
-    const existingRangeIndex = selectedRanges.findIndex(range => 
+    const multiDayRangeIndex = selectedRanges.findIndex(range => 
       date >= range.from && date <= range.to && range.from.getTime() !== range.to.getTime()
     );
 
-    if (existingRangeIndex >= 0) {
-      // For multi-day ranges, clicking removes the entire range
+    if (multiDayRangeIndex >= 0) {
+      // Remove the multi-day range and add this date as a single day
       const updatedRanges = [...selectedRanges];
-      updatedRanges.splice(existingRangeIndex, 1);
+      updatedRanges.splice(multiDayRangeIndex, 1);
+      
+      // Add the clicked date as a new single day range
+      const newRange: DateRange = {
+        from: date,
+        to: date,
+        dayType: "full",
+      };
+      updatedRanges.push(newRange);
+      
       onRangesChange(updatedRanges);
       setFirstClickDate(null);
       return;
@@ -97,19 +106,19 @@ export function MultiRangeCalendar({
         setFirstClickDate(null);
         return;
       } else {
-        // If second click is earlier, reset and treat as new first click
-        setFirstClickDate(date);
+        // If second click is earlier, reset and treat as new single day
+        const newRange: DateRange = {
+          from: date,
+          to: date,
+          dayType: "full",
+        };
+        onRangesChange([...selectedRanges, newRange]);
+        setFirstClickDate(null);
         return;
       }
     }
 
-    // If no first click date, set this as first click
-    if (!firstClickDate) {
-      setFirstClickDate(date);
-      return;
-    }
-
-    // Add new single day (fallback case)
+    // If no first click date or same date, add as single day
     const newRange: DateRange = {
       from: date,
       to: date,
@@ -117,7 +126,7 @@ export function MultiRangeCalendar({
     };
     
     onRangesChange([...selectedRanges, newRange]);
-    setFirstClickDate(null);
+    setFirstClickDate(date); // Set for potential range creation
   };
 
   const clearRanges = () => {
