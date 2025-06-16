@@ -56,6 +56,25 @@ const Index = () => {
   // Expert mode state
   const [expertMode, setExpertMode] = useState(false);
 
+  const isWeekend = (date: Date) => {
+    const day = date.getDay();
+    return day === 0 || day === 6; // Sunday or Saturday
+  };
+
+  const countWeekdaysInRange = (startDate: Date, endDate: Date): number => {
+    let count = 0;
+    const current = new Date(startDate);
+    
+    while (current <= endDate) {
+      if (!isWeekend(current)) {
+        count++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return count;
+  };
+
   const mergeConsecutiveRanges = (ranges: DateRange[]): DateRange[] => {
     if (ranges.length <= 1) return ranges;
 
@@ -98,17 +117,19 @@ const Index = () => {
   const calculateRangeDays = () => {
     return selectedRanges.reduce((total, range) => {
       if (range.from.getTime() === range.to.getTime()) {
-        // Single day
+        // Single day - only count if it's not a weekend
+        if (isWeekend(range.from)) {
+          return total; // Don't count weekend days
+        }
+        
         if (range.dayType === "half-morning" || range.dayType === "half-afternoon") {
           return total + 0.5;
         } else {
           return total + 1;
         }
       } else {
-        // Range of days - calculate inclusive day count
-        const timeDiff = range.to.getTime() - range.from.getTime();
-        const daysDiff = Math.round(timeDiff / (1000 * 60 * 60 * 24));
-        return total + daysDiff + 1; // +1 because we want inclusive count
+        // Range of days - count only weekdays
+        return total + countWeekdaysInRange(range.from, range.to);
       }
     }, 0);
   };
@@ -164,11 +185,17 @@ const Index = () => {
       let days: number;
       
       if (range.from.getTime() === range.to.getTime()) {
-        days = (range.dayType === "half-morning" || range.dayType === "half-afternoon") ? 0.5 : 1;
+        // Single day - only count if it's not a weekend
+        if (isWeekend(range.from)) {
+          days = 0; // Don't count weekend days
+        } else if (range.dayType === "half-morning" || range.dayType === "half-afternoon") {
+          days = 0.5;
+        } else {
+          days = 1;
+        }
       } else {
-        const timeDiff = range.to.getTime() - range.from.getTime();
-        const daysDiff = Math.round(timeDiff / (1000 * 60 * 60 * 24));
-        days = daysDiff + 1;
+        // Range of days - count only weekdays
+        days = countWeekdaysInRange(range.from, range.to);
       }
       
       const daysText = days === Math.floor(days) ? `${days} jour${days > 1 ? 's' : ''}` : `${days} jour${days > 1 ? 's' : ''}`;

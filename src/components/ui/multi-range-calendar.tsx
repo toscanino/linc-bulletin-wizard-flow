@@ -32,6 +32,20 @@ export function MultiRangeCalendar({
     return day === 0 || day === 6; // Sunday or Saturday
   };
 
+  const countWeekdaysInRange = (startDate: Date, endDate: Date): number => {
+    let count = 0;
+    const current = new Date(startDate);
+    
+    while (current <= endDate) {
+      if (!isWeekend(current)) {
+        count++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return count;
+  };
+
   const isDateInRanges = (date: Date) => {
     return selectedRanges.some(range => 
       date >= range.from && date <= range.to
@@ -81,6 +95,26 @@ export function MultiRangeCalendar({
 
     // Combine with non-full-day ranges
     return [...merged, ...nonFullDayRanges];
+  };
+
+  const calculateRangeDays = () => {
+    return selectedRanges.reduce((total, range) => {
+      if (range.from.getTime() === range.to.getTime()) {
+        // Single day - only count if it's not a weekend
+        if (isWeekend(range.from)) {
+          return total; // Don't count weekend days
+        }
+        
+        if (range.dayType === "half-morning" || range.dayType === "half-afternoon") {
+          return total + 0.5;
+        } else {
+          return total + 1;
+        }
+      } else {
+        // Range of days - count only weekdays
+        return total + countWeekdaysInRange(range.from, range.to);
+      }
+    }, 0);
   };
 
   const handleDayClick = (date: Date) => {
