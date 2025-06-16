@@ -44,6 +44,37 @@ export function MultiRangeCalendar({
     );
   };
 
+  const mergeConsecutiveRanges = (ranges: DateRange[]): DateRange[] => {
+    if (ranges.length <= 1) return ranges;
+
+    // Sort ranges by start date
+    const sortedRanges = [...ranges].sort((a, b) => a.from.getTime() - b.from.getTime());
+    const merged: DateRange[] = [];
+
+    for (const range of sortedRanges) {
+      // Only merge full-day single days
+      if (range.dayType !== "full" || range.from.getTime() !== range.to.getTime()) {
+        merged.push(range);
+        continue;
+      }
+
+      // Check if this single day can be merged with the last range in merged
+      const lastMerged = merged[merged.length - 1];
+      if (
+        lastMerged &&
+        lastMerged.dayType === "full" &&
+        Math.abs(range.from.getTime() - lastMerged.to.getTime()) === 24 * 60 * 60 * 1000 // Exactly one day apart
+      ) {
+        // Extend the last range
+        lastMerged.to = range.to;
+      } else {
+        merged.push(range);
+      }
+    }
+
+    return merged;
+  };
+
   const handleDayClick = (date: Date) => {
     if (isWeekend(date)) return;
 
@@ -65,7 +96,9 @@ export function MultiRangeCalendar({
         updatedRanges.splice(exactSingleDayIndex, 1); // Remove
       }
 
-      onRangesChange(updatedRanges);
+      // Apply merging after changes
+      const mergedRanges = mergeConsecutiveRanges(updatedRanges);
+      onRangesChange(mergedRanges);
       setFirstClickDate(null);
       return;
     }
@@ -88,7 +121,9 @@ export function MultiRangeCalendar({
       };
       updatedRanges.push(newRange);
       
-      onRangesChange(updatedRanges);
+      // Apply merging after changes
+      const mergedRanges = mergeConsecutiveRanges(updatedRanges);
+      onRangesChange(mergedRanges);
       setFirstClickDate(null);
       return;
     }
@@ -102,7 +137,8 @@ export function MultiRangeCalendar({
           to: date,
           dayType: "full",
         };
-        onRangesChange([...selectedRanges, newRange]);
+        const mergedRanges = mergeConsecutiveRanges([...selectedRanges, newRange]);
+        onRangesChange(mergedRanges);
         setFirstClickDate(null);
         return;
       } else {
@@ -112,7 +148,8 @@ export function MultiRangeCalendar({
           to: date,
           dayType: "full",
         };
-        onRangesChange([...selectedRanges, newRange]);
+        const mergedRanges = mergeConsecutiveRanges([...selectedRanges, newRange]);
+        onRangesChange(mergedRanges);
         setFirstClickDate(null);
         return;
       }
@@ -125,7 +162,8 @@ export function MultiRangeCalendar({
       dayType: "full",
     };
     
-    onRangesChange([...selectedRanges, newRange]);
+    const mergedRanges = mergeConsecutiveRanges([...selectedRanges, newRange]);
+    onRangesChange(mergedRanges);
     setFirstClickDate(date); // Set for potential range creation
   };
 
@@ -149,7 +187,7 @@ export function MultiRangeCalendar({
           details.push(dayText);
         }
       } else {
-        // Range of days
+        // Range of days - show actual range
         const fromText = format(range.from, "d MMMM", { locale: fr });
         const toText = format(range.to, "d MMMM", { locale: fr });
         details.push(`Du ${fromText} au ${toText}`);
@@ -282,6 +320,7 @@ export function MultiRangeCalendar({
         <p>• Cliquez plusieurs fois sur un jour seul pour demi-journées</p>
         <p>• Cliquez sur une plage existante pour la supprimer</p>
         <p>• Les week-ends sont non sélectionnables</p>
+        <p>• Les jours consécutifs sont automatiquement regroupés</p>
       </div>
     </div>
   );
