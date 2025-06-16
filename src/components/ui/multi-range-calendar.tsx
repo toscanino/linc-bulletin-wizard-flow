@@ -47,37 +47,40 @@ export function MultiRangeCalendar({
   const mergeConsecutiveRanges = (ranges: DateRange[]): DateRange[] => {
     if (ranges.length <= 1) return ranges;
 
-    // Sort ranges by start date
-    const sortedRanges = [...ranges].sort((a, b) => a.from.getTime() - b.from.getTime());
+    // Filter and sort full-day ranges by start date
+    const fullDayRanges = ranges.filter(range => range.dayType === "full" || !range.dayType)
+      .sort((a, b) => a.from.getTime() - b.from.getTime());
+    
+    // Keep non-full-day ranges as-is
+    const nonFullDayRanges = ranges.filter(range => range.dayType !== "full" && range.dayType);
+
+    if (fullDayRanges.length === 0) return nonFullDayRanges;
+
     const merged: DateRange[] = [];
+    let currentRange = { ...fullDayRanges[0] };
 
-    for (const range of sortedRanges) {
-      // Only merge full-day ranges
-      if (range.dayType !== "full") {
-        merged.push(range);
-        continue;
-      }
-
-      // Check if this range can be merged with the last range in merged
-      const lastMerged = merged[merged.length - 1];
-      if (lastMerged && lastMerged.dayType === "full") {
-        // Calculate the end of the last merged range + 1 day
-        const nextDay = new Date(lastMerged.to);
-        nextDay.setDate(nextDay.getDate() + 1);
-        
-        // If the current range starts exactly the day after the last merged range ends
-        if (range.from.getTime() === nextDay.getTime()) {
-          // Extend the last range to include this range
-          lastMerged.to = range.to;
-          continue;
-        }
-      }
+    for (let i = 1; i < fullDayRanges.length; i++) {
+      const nextRange = fullDayRanges[i];
       
-      // If we can't merge, add as new range
-      merged.push(range);
+      // Calculate the day after current range ends
+      const dayAfterCurrent = new Date(currentRange.to);
+      dayAfterCurrent.setDate(dayAfterCurrent.getDate() + 1);
+      
+      // If next range starts exactly one day after current range ends, merge them
+      if (nextRange.from.getTime() === dayAfterCurrent.getTime()) {
+        currentRange.to = nextRange.to;
+      } else {
+        // Can't merge, push current range and start new one
+        merged.push(currentRange);
+        currentRange = { ...nextRange };
+      }
     }
+    
+    // Don't forget to push the last range
+    merged.push(currentRange);
 
-    return merged;
+    // Combine with non-full-day ranges
+    return [...merged, ...nonFullDayRanges];
   };
 
   const handleDayClick = (date: Date) => {
