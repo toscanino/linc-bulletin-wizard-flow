@@ -10,11 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { MultiRangeCalendar, DateRange } from "@/components/ui/multi-range-calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { DateRange } from "react-day-picker";
 
 interface Employee {
   id: string;
@@ -54,12 +54,13 @@ const Index = () => {
   const [endDate, setEndDate] = useState("");
   const [comments, setComments] = useState("");
 
-  // Alternative wizard state with date range
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  // Alternative wizard state with multi-range calendar
+  const [selectedRanges, setSelectedRanges] = useState<DateRange[]>([]);
   const [altComments, setAltComments] = useState("");
   const [altEvpType, setAltEvpType] = useState("conges-payes");
+  const [lockedMonth] = useState(new Date(2025, 5, 1)); // June 2025
 
-  // ... keep existing code (calculateDays, calculateRangeDays, days, rangeDays functions)
+  // ... keep existing code (calculateDays function)
 
   const calculateDays = (start: string, end: string) => {
     if (!start || !end) return 0;
@@ -69,14 +70,22 @@ const Index = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   };
 
-  const calculateRangeDays = (range: DateRange | undefined) => {
-    if (!range?.from || !range?.to) return 0;
-    const diffTime = Math.abs(range.to.getTime() - range.from.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  const calculateRangeDays = () => {
+    return selectedRanges.reduce((total, range) => {
+      if (range.from.getTime() === range.to.getTime()) {
+        // Single day
+        return total + (range.isHalfDay ? 0.5 : 1);
+      } else {
+        // Range of days
+        const days = Math.ceil((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        return total + days;
+      }
+    }, 0);
   };
 
   const days = calculateDays(startDate, endDate);
-  const rangeDays = calculateRangeDays(dateRange);
+  const rangeDays = calculateRangeDays();
+  const rangePeriods = selectedRanges.length;
 
   // ... keep existing code (handleNextStep, handlePrevStep, handleAddEVP functions)
 
@@ -110,18 +119,21 @@ const Index = () => {
   };
 
   const handleAddAltEVP = () => {
-    if (selectedEmployee && dateRange?.from && dateRange?.to) {
-      const newEVP: EVP = {
-        id: Date.now().toString(),
+    if (selectedEmployee && selectedRanges.length > 0) {
+      // Create an EVP for each range
+      const newEVPs = selectedRanges.map((range, index) => ({
+        id: `${Date.now()}-${index}`,
         employeeId: selectedEmployee.id,
         type: altEvpType,
-        startDate: dateRange.from.toISOString().split('T')[0],
-        endDate: dateRange.to.toISOString().split('T')[0],
-        days: rangeDays,
+        startDate: range.from.toISOString().split('T')[0],
+        endDate: range.to.toISOString().split('T')[0],
+        days: range.from.getTime() === range.to.getTime() ? (range.isHalfDay ? 0.5 : 1) : 
+              Math.ceil((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24)) + 1,
         comments: altComments,
-        status: "confirmed"
-      };
-      setEvpList([...evpList, newEVP]);
+        status: "confirmed" as const
+      }));
+      
+      setEvpList([...evpList, ...newEVPs]);
       resetAltWizard();
     }
   };
@@ -137,7 +149,7 @@ const Index = () => {
 
   const resetAltWizard = () => {
     setShowAltWizard(false);
-    setDateRange(undefined);
+    setSelectedRanges([]);
     setAltComments("");
     setAltEvpType("conges-payes");
   };
@@ -168,6 +180,18 @@ const Index = () => {
       case "heures-sup": return "Heures supplémentaires";
       case "prime": return "Prime";
       default: return type;
+    }
+  };
+
+  const formatDaysCounter = (days: number, periods: number) => {
+    if (days === 0) return "";
+    
+    const daysText = days === Math.floor(days) ? `${days} jour${days > 1 ? 's' : ''}` : `${days} jour${days > 1 ? 's' : ''}`;
+    
+    if (periods <= 1) {
+      return daysText;
+    } else {
+      return `${daysText} répartis sur ${periods} période${periods > 1 ? 's' : ''}`;
     }
   };
 
@@ -502,9 +526,9 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Alternative Quick Wizard Modal */}
+      {/* Alternative Quick Wizard Modal with Multi-Range Calendar */}
       <Dialog open={showAltWizard} onOpenChange={(open) => !open && resetAltWizard()}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Ajout rapide - Élément variable</DialogTitle>
             <p className="text-sm text-muted-foreground mt-2">
@@ -528,49 +552,27 @@ const Index = () => {
               </Select>
             </div>
 
-            {/* Date Range Picker */}
+            {/* Period Selection with Locked Month */}
             <div className="space-y-4">
-              <Label>Période</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !dateRange && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "d MMM", { locale: fr })} -{" "}
-                          {format(dateRange.to, "d MMM yyyy", { locale: fr })}
-                        </>
-                      ) : (
-                        format(dateRange.from, "d MMM yyyy", { locale: fr })
-                      )
-                    ) : (
-                      "Sélectionner une période"
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="range"
-                    defaultMonth={dateRange?.from}
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    numberOfMonths={2}
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2">
+                <Label>Période de paie</Label>
+                <Badge variant="outline" className="text-xs">
+                  {format(lockedMonth, "MMMM yyyy", { locale: fr })}
+                </Badge>
+              </div>
               
+              <MultiRangeCalendar
+                selectedRanges={selectedRanges}
+                onRangesChange={setSelectedRanges}
+                lockedMonth={lockedMonth}
+                className="border rounded-lg"
+              />
+              
+              {/* Counter/Recap */}
               {rangeDays > 0 && (
-                <div className="bg-primary/10 p-3 rounded-lg">
-                  <p className="text-sm font-medium">
-                    Durée: {rangeDays} jour{rangeDays > 1 ? 's' : ''} - {getEVPTypeLabel(altEvpType)}
+                <div className="bg-primary/10 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-center">
+                    {formatDaysCounter(rangeDays, rangePeriods)} - {getEVPTypeLabel(altEvpType)}
                   </p>
                 </div>
               )}
@@ -597,7 +599,7 @@ const Index = () => {
             </Button>
             <Button 
               onClick={handleAddAltEVP}
-              disabled={!dateRange?.from || !dateRange?.to}
+              disabled={selectedRanges.length === 0}
               className="bg-primary hover:bg-primary/90"
             >
               Ajouter l'élément
