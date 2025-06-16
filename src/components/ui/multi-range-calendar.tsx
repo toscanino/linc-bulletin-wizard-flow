@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { DayPicker, DayProps } from "react-day-picker";
@@ -48,29 +47,38 @@ export function MultiRangeCalendar({
   const handleDayClick = (date: Date) => {
     if (isWeekend(date)) return;
 
-    // Check if this date is part of an existing range
+    // First check if this date is exactly a single day range (for cycling behavior)
+    const exactSingleDayIndex = selectedRanges.findIndex(range => 
+      range.from.getTime() === date.getTime() && range.to.getTime() === date.getTime()
+    );
+
+    if (exactSingleDayIndex >= 0) {
+      // This is a single day range, cycle through day types
+      const currentRange = selectedRanges[exactSingleDayIndex];
+      const updatedRanges = [...selectedRanges];
+
+      if (!currentRange.dayType || currentRange.dayType === "full") {
+        updatedRanges[exactSingleDayIndex] = { ...currentRange, dayType: "half-morning" };
+      } else if (currentRange.dayType === "half-morning") {
+        updatedRanges[exactSingleDayIndex] = { ...currentRange, dayType: "half-afternoon" };
+      } else if (currentRange.dayType === "half-afternoon") {
+        updatedRanges.splice(exactSingleDayIndex, 1); // Remove
+      }
+
+      onRangesChange(updatedRanges);
+      setFirstClickDate(null);
+      return;
+    }
+
+    // Check if this date is part of a multi-day range
     const existingRangeIndex = selectedRanges.findIndex(range => 
-      date >= range.from && date <= range.to
+      date >= range.from && date <= range.to && range.from.getTime() !== range.to.getTime()
     );
 
     if (existingRangeIndex >= 0) {
-      const currentRange = selectedRanges[existingRangeIndex];
+      // For multi-day ranges, clicking removes the entire range
       const updatedRanges = [...selectedRanges];
-
-      // If it's a single day range, cycle through day types
-      if (currentRange.from.getTime() === currentRange.to.getTime()) {
-        if (!currentRange.dayType || currentRange.dayType === "full") {
-          updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-morning" };
-        } else if (currentRange.dayType === "half-morning") {
-          updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-afternoon" };
-        } else if (currentRange.dayType === "half-afternoon") {
-          updatedRanges.splice(existingRangeIndex, 1); // Remove
-        }
-      } else {
-        // For multi-day ranges, clicking removes the entire range
-        updatedRanges.splice(existingRangeIndex, 1);
-      }
-
+      updatedRanges.splice(existingRangeIndex, 1);
       onRangesChange(updatedRanges);
       setFirstClickDate(null);
       return;
