@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Plus, Calendar, Users, FileText, Edit, Trash2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,32 +44,14 @@ const employees: Employee[] = [
 
 const Index = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [showWizard, setShowWizard] = useState(false);
   const [showAltWizard, setShowAltWizard] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
   const [evpList, setEvpList] = useState<EVP[]>([]);
   
-  // Form state
-  const [evpType, setEvpType] = useState("conges-payes");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [comments, setComments] = useState("");
-
   // Alternative wizard state with multi-range calendar
   const [selectedRanges, setSelectedRanges] = useState<DateRange[]>([]);
   const [altComments, setAltComments] = useState("");
   const [altEvpType, setAltEvpType] = useState("conges-payes");
   const [lockedMonth] = useState(new Date(2025, 5, 1)); // June 2025
-
-  // ... keep existing code (calculateDays function)
-
-  const calculateDays = (start: string, end: string) => {
-    if (!start || !end) return 0;
-    const startDay = new Date(start);
-    const endDay = new Date(end);
-    const diffTime = Math.abs(endDay.getTime() - startDay.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  };
 
   const calculateRangeDays = () => {
     return selectedRanges.reduce((total, range) => {
@@ -87,40 +70,8 @@ const Index = () => {
     }, 0);
   };
 
-  const days = calculateDays(startDate, endDate);
   const rangeDays = calculateRangeDays();
   const rangePeriods = selectedRanges.length;
-
-  // ... keep existing code (handleNextStep, handlePrevStep, handleAddEVP functions)
-
-  const handleNextStep = () => {
-    if (currentStep < 3) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleAddEVP = () => {
-    if (selectedEmployee && startDate && endDate) {
-      const newEVP: EVP = {
-        id: Date.now().toString(),
-        employeeId: selectedEmployee.id,
-        type: evpType,
-        startDate,
-        endDate,
-        days,
-        comments,
-        status: "confirmed"
-      };
-      setEvpList([...evpList, newEVP]);
-      resetWizard();
-    }
-  };
 
   const handleAddAltEVP = () => {
     if (selectedEmployee && selectedRanges.length > 0) {
@@ -152,27 +103,11 @@ const Index = () => {
     }
   };
 
-  const resetWizard = () => {
-    setShowWizard(false);
-    setCurrentStep(1);
-    setStartDate("");
-    setEndDate("");
-    setComments("");
-    setEvpType("conges-payes");
-  };
-
   const resetAltWizard = () => {
     setShowAltWizard(false);
     setSelectedRanges([]);
     setAltComments("");
     setAltEvpType("conges-payes");
-  };
-
-  // ... keep existing code (openWizard, openAltWizard, deleteEVP, getEVPsForEmployee, getEVPTypeLabel functions)
-
-  const openWizard = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setShowWizard(true);
   };
 
   const openAltWizard = (employee: Employee) => {
@@ -280,13 +215,9 @@ const Index = () => {
                       <p className="text-sm text-muted-foreground mt-1">Éléments Variables de Paie</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button onClick={() => openWizard(selectedEmployee)} className="bg-primary hover:bg-primary/90">
+                      <Button onClick={() => openAltWizard(selectedEmployee)} className="bg-primary hover:bg-primary/90">
                         <Plus className="h-4 w-4 mr-2" />
-                        Ajouter un EVP
-                      </Button>
-                      <Button onClick={() => openAltWizard(selectedEmployee)} variant="outline">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Ajout rapide
+                        Renseigner un événement de paie
                       </Button>
                     </div>
                   </div>
@@ -296,7 +227,7 @@ const Index = () => {
                     <div className="text-center py-12 text-muted-foreground">
                       <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>Aucun élément variable pour ce mois</p>
-                      <p className="text-sm">Cliquez sur "Ajouter un EVP" pour commencer</p>
+                      <p className="text-sm">Cliquez sur "Renseigner un événement de paie" pour commencer</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -357,194 +288,11 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Original Wizard Modal - keep existing code */}
-      <Dialog open={showWizard} onOpenChange={(open) => !open && resetWizard()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Ajouter un élément variable de paie</DialogTitle>
-            <div className="flex items-center justify-between mt-4">
-              <div className="flex items-center space-x-2">
-                {[1, 2, 3].map((step) => (
-                  <div key={step} className="flex items-center">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step <= currentStep
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {step}
-                    </div>
-                    {step < 3 && (
-                      <div
-                        className={`w-8 h-0.5 mx-2 ${
-                          step < currentStep ? 'bg-primary' : 'bg-muted'
-                        }`}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <span className="text-sm text-muted-foreground">
-                Étape {currentStep} sur 3
-              </span>
-            </div>
-          </DialogHeader>
-
-          <div className="py-6">
-            {/* Step 1: Type Selection */}
-            {currentStep === 1 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-medium mb-4">Choix de l'élément variable</h3>
-                  <div className="space-y-3">
-                    <Label htmlFor="evp-type">Type d'élément</Label>
-                    <Select value={evpType} onValueChange={setEvpType}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="conges-payes">Congés payés</SelectItem>
-                        <SelectItem value="heures-sup">Heures supplémentaires</SelectItem>
-                        <SelectItem value="prime">Prime</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Employé sélectionné:</strong> {selectedEmployee?.name}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Details */}
-            {currentStep === 2 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-medium mb-4">Détails de l'absence</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="start-date">Date de début</Label>
-                      <Input
-                        id="start-date"
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="end-date">Date de fin</Label>
-                      <Input
-                        id="end-date"
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                  {days > 0 && (
-                    <div className="mt-4 p-3 bg-primary/10 rounded-lg">
-                      <p className="text-sm font-medium">
-                        Durée calculée: {days} jour{days > 1 ? 's' : ''}
-                      </p>
-                    </div>
-                  )}
-                  <div className="mt-4">
-                    <Label htmlFor="comments">Commentaires (optionnel)</Label>
-                    <Textarea
-                      id="comments"
-                      placeholder="Ajoutez des notes ou commentaires..."
-                      value={comments}
-                      onChange={(e) => setComments(e.target.value)}
-                      className="mt-1"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Confirmation */}
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-medium mb-4">Confirmation</h3>
-                  <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Employé:</span>
-                      <span className="font-medium">{selectedEmployee?.name}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Type:</span>
-                      <span className="font-medium">{getEVPTypeLabel(evpType)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Période:</span>
-                      <span className="font-medium">
-                        {startDate && endDate && 
-                          `${new Date(startDate).toLocaleDateString('fr-FR')} - ${new Date(endDate).toLocaleDateString('fr-FR')}`
-                        }
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Durée:</span>
-                      <span className="font-medium">{days} jour{days > 1 ? 's' : ''}</span>
-                    </div>
-                    {comments && (
-                      <>
-                        <Separator />
-                        <div>
-                          <span className="text-muted-foreground">Commentaires:</span>
-                          <p className="text-sm mt-1">{comments}</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-between pt-4 border-t">
-            <div>
-              {currentStep > 1 && (
-                <Button variant="outline" onClick={handlePrevStep}>
-                  Précédent
-                </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={resetWizard}>
-                Annuler
-              </Button>
-              {currentStep < 3 ? (
-                <Button 
-                  onClick={handleNextStep}
-                  disabled={currentStep === 2 && (!startDate || !endDate)}
-                >
-                  Suivant
-                </Button>
-              ) : (
-                <Button onClick={handleAddEVP} className="bg-primary hover:bg-primary/90">
-                  Ajouter
-                </Button>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Alternative Quick Wizard Modal with Multi-Range Calendar */}
       <Dialog open={showAltWizard} onOpenChange={(open) => !open && resetAltWizard()}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Ajout rapide - Élément variable</DialogTitle>
+            <DialogTitle>Renseigner un événement de paie</DialogTitle>
             <p className="text-sm text-muted-foreground mt-2">
               Employé: <span className="font-medium">{selectedEmployee?.name}</span>
             </p>
