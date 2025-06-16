@@ -98,6 +98,31 @@ export function MultiRangeCalendar({
     setCurrentSelection({});
   };
 
+  const formatSelectedDays = () => {
+    const details: string[] = [];
+    
+    selectedRanges.forEach(range => {
+      if (range.from.getTime() === range.to.getTime()) {
+        // Single day
+        const dayText = format(range.from, "EEEE d MMMM", { locale: fr });
+        if (range.dayType === "half-morning") {
+          details.push(`${dayText} (matin)`);
+        } else if (range.dayType === "half-afternoon") {
+          details.push(`${dayText} (après-midi)`);
+        } else {
+          details.push(dayText);
+        }
+      } else {
+        // Range of days
+        const fromText = format(range.from, "d MMMM", { locale: fr });
+        const toText = format(range.to, "d MMMM", { locale: fr });
+        details.push(`Du ${fromText} au ${toText}`);
+      }
+    });
+    
+    return details;
+  };
+
   const CustomDay = ({ date, ...props }: DayProps) => {
     const rangeInfo = getDateRangeInfo(date);
     const isSelected = !!rangeInfo;
@@ -125,10 +150,14 @@ export function MultiRangeCalendar({
       >
         {format(date, "d")}
         {rangeInfo?.dayType === "half-morning" && (
-          <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-primary-foreground rounded-full" />
+          <div className="absolute top-0.5 left-1/2 transform -translate-x-1/2 text-[8px] font-bold text-primary-foreground">
+            M
+          </div>
         )}
         {rangeInfo?.dayType === "half-afternoon" && (
-          <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-primary-foreground rounded-full" />
+          <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 text-[8px] font-bold text-primary-foreground">
+            AM
+          </div>
         )}
       </button>
     );
@@ -151,41 +180,59 @@ export function MultiRangeCalendar({
         </button>
       </div>
       
-      <DayPicker
-        mode="single"
-        month={lockedMonth}
-        className={cn("p-3 pointer-events-auto", className)}
-        classNames={{
-          months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-          month: "space-y-4",
-          caption: "flex justify-center pt-1 relative items-center",
-          caption_label: "text-sm font-medium",
-          nav: "space-x-1 flex items-center opacity-50 pointer-events-none",
-          nav_button: cn(
-            buttonVariants({ variant: "outline" }),
-            "h-7 w-7 bg-transparent p-0 opacity-50"
-          ),
-          nav_button_previous: "absolute left-1",
-          nav_button_next: "absolute right-1",
-          table: "w-full border-collapse space-y-1",
-          head_row: "flex",
-          head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-          row: "flex w-full mt-2",
-          cell: "h-9 w-9 text-center text-sm p-0 relative",
-          day: "h-9 w-9 p-0 font-normal",
-          day_hidden: "invisible",
-        }}
-        components={{
-          IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
-          IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
-          Day: CustomDay,
-        }}
-        disabled={[
-          { before: new Date(lockedMonth.getFullYear(), lockedMonth.getMonth(), 1) },
-          { after: new Date(lockedMonth.getFullYear(), lockedMonth.getMonth() + 1, 0) }
-        ]}
-        showOutsideDays={false}
-      />
+      <div className="flex gap-6">
+        <div className="flex-shrink-0">
+          <DayPicker
+            mode="single"
+            month={lockedMonth}
+            className={cn("p-3 pointer-events-auto")}
+            classNames={{
+              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+              month: "space-y-4",
+              caption: "flex justify-center pt-1 relative items-center",
+              caption_label: "text-sm font-medium",
+              nav: "space-x-1 flex items-center opacity-50 pointer-events-none",
+              nav_button: cn(
+                buttonVariants({ variant: "outline" }),
+                "h-7 w-7 bg-transparent p-0 opacity-50"
+              ),
+              nav_button_previous: "absolute left-1",
+              nav_button_next: "absolute right-1",
+              table: "w-full border-collapse space-y-1",
+              head_row: "flex",
+              head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+              row: "flex w-full mt-2",
+              cell: "h-9 w-9 text-center text-sm p-0 relative",
+              day: "h-9 w-9 p-0 font-normal",
+              day_hidden: "invisible",
+            }}
+            components={{
+              IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
+              IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
+              Day: CustomDay,
+            }}
+            disabled={[
+              { before: new Date(lockedMonth.getFullYear(), lockedMonth.getMonth(), 1) },
+              { after: new Date(lockedMonth.getFullYear(), lockedMonth.getMonth() + 1, 0) }
+            ]}
+            showOutsideDays={false}
+          />
+        </div>
+        
+        {selectedRanges.length > 0 && (
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium mb-3 text-muted-foreground">Jours sélectionnés</h4>
+            <ul className="space-y-1 text-sm">
+              {formatSelectedDays().map((day, index) => (
+                <li key={index} className="flex items-start gap-2">
+                  <span className="text-muted-foreground mt-1.5 block w-1 h-1 bg-muted-foreground rounded-full flex-shrink-0"></span>
+                  <span className="break-words">{day}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
       
       <div className="text-xs text-muted-foreground space-y-1">
         <p>• Cliquez pour sélectionner une période</p>
