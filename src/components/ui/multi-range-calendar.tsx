@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { DayPicker, DayProps } from "react-day-picker";
@@ -220,12 +219,6 @@ export function MultiRangeCalendar({
             </ul>
           </div>
         )}
-      </div>
-
-      {/* Month indicator with lock icon at bottom */}
-      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Lock className="h-4 w-4" />
-        <span>{format(lockedMonth, "MMMM yyyy", { locale: fr })}</span>
       </div>
       
       <div className="text-xs text-muted-foreground space-y-1">
