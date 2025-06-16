@@ -503,9 +503,9 @@ const Index = () => {
                 <div className="h-full">
                   <Label className="text-lg font-medium">Aperçu</Label>
                   <div className="mt-4 bg-muted/50 rounded-lg p-4 h-96 overflow-auto">
-                    <pre className="text-sm whitespace-pre-wrap">
+                    <div className="text-sm whitespace-pre-wrap">
                       {generatePreviewText()}
-                    </pre>
+                    </div>
                   </div>
                 </div>
               )}
