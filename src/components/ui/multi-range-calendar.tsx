@@ -26,11 +26,6 @@ export function MultiRangeCalendar({
   lockedMonth,
   className,
 }: MultiRangeCalendarProps) {
-  const [currentSelection, setCurrentSelection] = React.useState<{
-    from?: Date;
-    to?: Date;
-  }>({});
-
   const isWeekend = (date: Date) => {
     const day = date.getDay();
     return day === 0 || day === 6; // Sunday or Saturday
@@ -73,29 +68,18 @@ export function MultiRangeCalendar({
       return;
     }
 
-    // If we're starting a new selection
-    if (!currentSelection.from) {
-      setCurrentSelection({ from: date });
-      return;
-    }
-
-    // If we're completing a selection
-    if (currentSelection.from && !currentSelection.to) {
-      const newRange: DateRange = {
-        from: currentSelection.from <= date ? currentSelection.from : date,
-        to: currentSelection.from <= date ? date : currentSelection.from,
-        dayType: "full",
-      };
-      
-      onRangesChange([...selectedRanges, newRange]);
-      setCurrentSelection({});
-      return;
-    }
+    // Add new single day (not a range)
+    const newRange: DateRange = {
+      from: date,
+      to: date,
+      dayType: "full",
+    };
+    
+    onRangesChange([...selectedRanges, newRange]);
   };
 
   const clearRanges = () => {
     onRangesChange([]);
-    setCurrentSelection({});
   };
 
   const formatSelectedDays = () => {
@@ -127,11 +111,6 @@ export function MultiRangeCalendar({
     const rangeInfo = getDateRangeInfo(date);
     const isSelected = !!rangeInfo;
     const isWeekendDay = isWeekend(date);
-    const isInCurrentSelection = currentSelection.from && 
-      ((currentSelection.from <= date && !currentSelection.to) ||
-       (currentSelection.from && currentSelection.to && 
-        date >= new Date(Math.min(currentSelection.from.getTime(), currentSelection.to.getTime())) &&
-        date <= new Date(Math.max(currentSelection.from.getTime(), currentSelection.to.getTime()))));
 
     return (
       <button
@@ -140,31 +119,33 @@ export function MultiRangeCalendar({
           buttonVariants({ variant: "ghost" }),
           "h-9 w-9 p-0 font-normal relative overflow-hidden",
           isWeekendDay && "text-muted-foreground/50 bg-muted/20 cursor-not-allowed",
-          isSelected && !isWeekendDay && "text-primary-foreground",
-          isInCurrentSelection && !isWeekendDay && "bg-primary/50"
+          !isWeekendDay && "hover:bg-muted/50"
         )}
         onClick={() => handleDayClick(date)}
         disabled={isWeekendDay}
       >
-        {/* Background fills for half-days */}
+        {/* Background fills for different day types */}
         {rangeInfo?.dayType === "half-morning" && (
-          <div className="absolute inset-0 bg-primary">
-            <div className="h-1/2 w-full bg-primary"></div>
-            <div className="h-1/2 w-full bg-transparent"></div>
-          </div>
+          <>
+            <div className="absolute inset-0 bg-primary opacity-100" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
+            <div className="absolute inset-0 bg-muted/20" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
+          </>
         )}
         {rangeInfo?.dayType === "half-afternoon" && (
-          <div className="absolute inset-0 bg-primary">
-            <div className="h-1/2 w-full bg-transparent"></div>
-            <div className="h-1/2 w-full bg-primary"></div>
-          </div>
+          <>
+            <div className="absolute inset-0 bg-muted/20" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
+            <div className="absolute inset-0 bg-primary opacity-100" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
+          </>
         )}
         {rangeInfo?.dayType === "full" && (
-          <div className="absolute inset-0 bg-primary"></div>
+          <div className="absolute inset-0 bg-primary opacity-100"></div>
         )}
         
         {/* Day number */}
-        <span className="relative z-10">
+        <span className={cn(
+          "relative z-10 font-medium",
+          isSelected ? "text-primary-foreground" : "text-foreground"
+        )}>
           {format(date, "d")}
         </span>
       </button>
@@ -243,7 +224,7 @@ export function MultiRangeCalendar({
       </div>
       
       <div className="text-xs text-muted-foreground space-y-1">
-        <p>• Cliquez pour sélectionner une période</p>
+        <p>• Cliquez pour sélectionner une journée</p>
         <p>• Cliquez plusieurs fois sur un jour pour demi-journées</p>
         <p>• Les week-ends sont non sélectionnables</p>
       </div>
