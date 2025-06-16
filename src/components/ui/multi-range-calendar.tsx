@@ -1,6 +1,6 @@
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { DayPicker, DayProps } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { fr } from "date-fns/locale";
 export interface DateRange {
   from: Date;
   to: Date;
-  isHalfDay?: boolean;
+  dayType?: "full" | "half-morning" | "half-afternoon";
 }
 
 export interface MultiRangeCalendarProps {
@@ -42,14 +42,36 @@ export function MultiRangeCalendar({
     );
   };
 
-  const isDateHalfDay = (date: Date) => {
-    return selectedRanges.some(range => 
-      date >= range.from && date <= range.to && range.isHalfDay
+  const getDateRangeInfo = (date: Date) => {
+    return selectedRanges.find(range => 
+      date >= range.from && date <= range.to
     );
   };
 
   const handleDayClick = (date: Date) => {
     if (isWeekend(date)) return;
+
+    // Check if this is a single day that already exists
+    const existingRangeIndex = selectedRanges.findIndex(range => 
+      range.from.getTime() === date.getTime() && range.to.getTime() === date.getTime()
+    );
+
+    if (existingRangeIndex >= 0) {
+      // Cycle through: full -> half-morning -> half-afternoon -> removed
+      const currentRange = selectedRanges[existingRangeIndex];
+      const updatedRanges = [...selectedRanges];
+
+      if (!currentRange.dayType || currentRange.dayType === "full") {
+        updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-morning" };
+      } else if (currentRange.dayType === "half-morning") {
+        updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-afternoon" };
+      } else if (currentRange.dayType === "half-afternoon") {
+        updatedRanges.splice(existingRangeIndex, 1); // Remove
+      }
+
+      onRangesChange(updatedRanges);
+      return;
+    }
 
     // If we're starting a new selection
     if (!currentSelection.from) {
@@ -62,37 +84,12 @@ export function MultiRangeCalendar({
       const newRange: DateRange = {
         from: currentSelection.from <= date ? currentSelection.from : date,
         to: currentSelection.from <= date ? date : currentSelection.from,
+        dayType: "full",
       };
       
       onRangesChange([...selectedRanges, newRange]);
       setCurrentSelection({});
       return;
-    }
-  };
-
-  const handleDoubleClick = (date: Date) => {
-    if (isWeekend(date)) return;
-
-    // Toggle half-day for single date
-    const existingRangeIndex = selectedRanges.findIndex(range => 
-      range.from.getTime() === date.getTime() && range.to.getTime() === date.getTime()
-    );
-
-    if (existingRangeIndex >= 0) {
-      const updatedRanges = [...selectedRanges];
-      updatedRanges[existingRangeIndex] = {
-        ...updatedRanges[existingRangeIndex],
-        isHalfDay: !updatedRanges[existingRangeIndex].isHalfDay
-      };
-      onRangesChange(updatedRanges);
-    } else {
-      // Create new half-day range
-      const newRange: DateRange = {
-        from: date,
-        to: date,
-        isHalfDay: true,
-      };
-      onRangesChange([...selectedRanges, newRange]);
     }
   };
 
@@ -102,14 +99,14 @@ export function MultiRangeCalendar({
   };
 
   const CustomDay = ({ date, ...props }: DayProps) => {
-    const isSelected = isDateInRanges(date);
-    const isHalfDay = isDateHalfDay(date);
+    const rangeInfo = getDateRangeInfo(date);
+    const isSelected = !!rangeInfo;
     const isWeekendDay = isWeekend(date);
     const isInCurrentSelection = currentSelection.from && 
       ((currentSelection.from <= date && !currentSelection.to) ||
        (currentSelection.from && currentSelection.to && 
-        date >= Math.min(currentSelection.from.getTime(), currentSelection.to.getTime()) &&
-        date <= Math.max(currentSelection.from.getTime(), currentSelection.to.getTime())));
+        date >= new Date(Math.min(currentSelection.from.getTime(), currentSelection.to.getTime())) &&
+        date <= new Date(Math.max(currentSelection.from.getTime(), currentSelection.to.getTime()))));
 
     return (
       <button
@@ -120,15 +117,18 @@ export function MultiRangeCalendar({
           isWeekendDay && "text-muted-foreground/50 bg-muted/20 cursor-not-allowed",
           isSelected && !isWeekendDay && "bg-primary text-primary-foreground hover:bg-primary",
           isInCurrentSelection && !isWeekendDay && "bg-primary/50",
-          isHalfDay && "bg-primary/70"
+          rangeInfo?.dayType === "half-morning" && "bg-primary/70",
+          rangeInfo?.dayType === "half-afternoon" && "bg-primary/70"
         )}
         onClick={() => handleDayClick(date)}
-        onDoubleClick={() => handleDoubleClick(date)}
         disabled={isWeekendDay}
       >
         {format(date, "d")}
-        {isHalfDay && (
-          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary-foreground rounded-full" />
+        {rangeInfo?.dayType === "half-morning" && (
+          <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-primary-foreground rounded-full" />
+        )}
+        {rangeInfo?.dayType === "half-afternoon" && (
+          <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-primary-foreground rounded-full" />
         )}
       </button>
     );
@@ -137,9 +137,12 @@ export function MultiRangeCalendar({
   return (
     <div className={cn("space-y-4", className)}>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">
-          {format(lockedMonth, "MMMM yyyy", { locale: fr })}
-        </h3>
+        <div className="flex items-center gap-2">
+          <Lock className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-medium">
+            {format(lockedMonth, "MMMM yyyy", { locale: fr })}
+          </h3>
+        </div>
         <button
           onClick={clearRanges}
           className="text-xs text-muted-foreground hover:text-foreground"
@@ -186,7 +189,7 @@ export function MultiRangeCalendar({
       
       <div className="text-xs text-muted-foreground space-y-1">
         <p>• Cliquez pour sélectionner une période</p>
-        <p>• Double-cliquez pour une demi-journée</p>
+        <p>• Cliquez plusieurs fois sur un jour pour demi-journées</p>
         <p>• Les week-ends sont non sélectionnables</p>
       </div>
     </div>

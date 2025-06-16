@@ -74,7 +74,11 @@ const Index = () => {
     return selectedRanges.reduce((total, range) => {
       if (range.from.getTime() === range.to.getTime()) {
         // Single day
-        return total + (range.isHalfDay ? 0.5 : 1);
+        if (range.dayType === "half-morning" || range.dayType === "half-afternoon") {
+          return total + 0.5;
+        } else {
+          return total + 1;
+        }
       } else {
         // Range of days
         const days = Math.ceil((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -121,17 +125,27 @@ const Index = () => {
   const handleAddAltEVP = () => {
     if (selectedEmployee && selectedRanges.length > 0) {
       // Create an EVP for each range
-      const newEVPs = selectedRanges.map((range, index) => ({
-        id: `${Date.now()}-${index}`,
-        employeeId: selectedEmployee.id,
-        type: altEvpType,
-        startDate: range.from.toISOString().split('T')[0],
-        endDate: range.to.toISOString().split('T')[0],
-        days: range.from.getTime() === range.to.getTime() ? (range.isHalfDay ? 0.5 : 1) : 
-              Math.ceil((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24)) + 1,
-        comments: altComments,
-        status: "confirmed" as const
-      }));
+      const newEVPs = selectedRanges.map((range, index) => {
+        let days: number;
+        if (range.from.getTime() === range.to.getTime()) {
+          // Single day
+          days = (range.dayType === "half-morning" || range.dayType === "half-afternoon") ? 0.5 : 1;
+        } else {
+          // Range of days
+          days = Math.ceil((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        }
+
+        return {
+          id: `${Date.now()}-${index}`,
+          employeeId: selectedEmployee.id,
+          type: altEvpType,
+          startDate: range.from.toISOString().split('T')[0],
+          endDate: range.to.toISOString().split('T')[0],
+          days,
+          comments: altComments,
+          status: "confirmed" as const
+        };
+      });
       
       setEvpList([...evpList, ...newEVPs]);
       resetAltWizard();
