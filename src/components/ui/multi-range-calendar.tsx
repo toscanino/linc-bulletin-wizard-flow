@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { DayPicker, DayProps } from "react-day-picker";
@@ -25,6 +26,8 @@ export function MultiRangeCalendar({
   lockedMonth,
   className,
 }: MultiRangeCalendarProps) {
+  const [rangeStart, setRangeStart] = React.useState<Date | null>(null);
+
   const isWeekend = (date: Date) => {
     const day = date.getDay();
     return day === 0 || day === 6; // Sunday or Saturday
@@ -45,40 +48,62 @@ export function MultiRangeCalendar({
   const handleDayClick = (date: Date) => {
     if (isWeekend(date)) return;
 
-    // Check if this is a single day that already exists
-    const existingRangeIndex = selectedRanges.findIndex(range => 
-      range.from.getTime() === date.getTime() && range.to.getTime() === date.getTime()
-    );
+    // If we're not starting a range, check if this is a single day that already exists
+    if (!rangeStart) {
+      const existingRangeIndex = selectedRanges.findIndex(range => 
+        range.from.getTime() === date.getTime() && range.to.getTime() === date.getTime()
+      );
 
-    if (existingRangeIndex >= 0) {
-      // Cycle through: full -> half-morning -> half-afternoon -> removed
-      const currentRange = selectedRanges[existingRangeIndex];
-      const updatedRanges = [...selectedRanges];
+      if (existingRangeIndex >= 0) {
+        // Cycle through: full -> half-morning -> half-afternoon -> removed
+        const currentRange = selectedRanges[existingRangeIndex];
+        const updatedRanges = [...selectedRanges];
 
-      if (!currentRange.dayType || currentRange.dayType === "full") {
-        updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-morning" };
-      } else if (currentRange.dayType === "half-morning") {
-        updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-afternoon" };
-      } else if (currentRange.dayType === "half-afternoon") {
-        updatedRanges.splice(existingRangeIndex, 1); // Remove
+        if (!currentRange.dayType || currentRange.dayType === "full") {
+          updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-morning" };
+        } else if (currentRange.dayType === "half-morning") {
+          updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-afternoon" };
+        } else if (currentRange.dayType === "half-afternoon") {
+          updatedRanges.splice(existingRangeIndex, 1); // Remove
+        }
+
+        onRangesChange(updatedRanges);
+        return;
       }
 
-      onRangesChange(updatedRanges);
+      // Start a new range
+      setRangeStart(date);
       return;
     }
 
-    // Add new single day (not a range)
-    const newRange: DateRange = {
-      from: date,
-      to: date,
-      dayType: "full",
-    };
-    
-    onRangesChange([...selectedRanges, newRange]);
+    // Complete the range
+    const from = rangeStart < date ? rangeStart : date;
+    const to = rangeStart < date ? date : rangeStart;
+
+    // Check if this creates a single day range
+    if (from.getTime() === to.getTime()) {
+      // Single day
+      const newRange: DateRange = {
+        from: from,
+        to: to,
+        dayType: "full",
+      };
+      onRangesChange([...selectedRanges, newRange]);
+    } else {
+      // Multi-day range
+      const newRange: DateRange = {
+        from: from,
+        to: to,
+      };
+      onRangesChange([...selectedRanges, newRange]);
+    }
+
+    setRangeStart(null);
   };
 
   const clearRanges = () => {
     onRangesChange([]);
+    setRangeStart(null);
   };
 
   const formatSelectedDays = () => {
@@ -106,10 +131,19 @@ export function MultiRangeCalendar({
     return details;
   };
 
+  const isDateInCurrentRange = (date: Date) => {
+    if (!rangeStart) return false;
+    const from = rangeStart < date ? rangeStart : date;
+    const to = rangeStart < date ? date : rangeStart;
+    return date >= from && date <= to;
+  };
+
   const CustomDay = ({ date, ...props }: DayProps) => {
     const rangeInfo = getDateRangeInfo(date);
     const isSelected = !!rangeInfo;
     const isWeekendDay = isWeekend(date);
+    const isRangeStartDay = rangeStart && rangeStart.getTime() === date.getTime();
+    const isInCurrentRange = isDateInCurrentRange(date);
 
     return (
       <button
@@ -118,7 +152,9 @@ export function MultiRangeCalendar({
           buttonVariants({ variant: "ghost" }),
           "h-9 w-9 p-0 font-normal relative overflow-hidden",
           isWeekendDay && "text-muted-foreground/50 bg-muted/20 cursor-not-allowed",
-          !isWeekendDay && "hover:bg-muted/50"
+          !isWeekendDay && "hover:bg-muted/50",
+          isRangeStartDay && "ring-2 ring-primary ring-offset-1",
+          isInCurrentRange && !isSelected && "bg-primary/20"
         )}
         onClick={() => handleDayClick(date)}
         disabled={isWeekendDay}
@@ -139,6 +175,9 @@ export function MultiRangeCalendar({
         {rangeInfo?.dayType === "full" && (
           <div className="absolute inset-0 bg-primary opacity-100"></div>
         )}
+        {!rangeInfo && isInCurrentRange && (
+          <div className="absolute inset-0 bg-primary opacity-30"></div>
+        )}
         
         {/* Day number */}
         <span className={cn(
@@ -158,11 +197,11 @@ export function MultiRangeCalendar({
         <button
           onClick={clearRanges}
           className={cn(
-            buttonVariants({ variant: "outline", size: "sm" }),
-            "text-sm px-4 py-2"
+            buttonVariants({ variant: "outline", size: "default" }),
+            "text-base px-6 py-3 h-auto"
           )}
         >
-          <RotateCcw className="h-4 w-4 mr-2" />
+          <RotateCcw className="h-5 w-5 mr-2" />
           Effacer
         </button>
       </div>
@@ -222,8 +261,9 @@ export function MultiRangeCalendar({
       </div>
       
       <div className="text-xs text-muted-foreground space-y-1">
-        <p>• Cliquez pour sélectionner une journée</p>
-        <p>• Cliquez plusieurs fois sur un jour pour demi-journées</p>
+        <p>• Cliquez pour commencer une sélection</p>
+        <p>• Cliquez à nouveau pour terminer une plage de dates</p>
+        <p>• Cliquez plusieurs fois sur un jour seul pour demi-journées</p>
         <p>• Les week-ends sont non sélectionnables</p>
       </div>
     </div>
