@@ -63,9 +63,10 @@ const Index = () => {
           return total + 1;
         }
       } else {
-        // Range of days
-        const days = Math.ceil((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        return total + days;
+        // Range of days - calculate inclusive day count
+        const timeDiff = range.to.getTime() - range.from.getTime();
+        const daysDiff = Math.round(timeDiff / (1000 * 60 * 60 * 24));
+        return total + daysDiff + 1; // +1 because we want inclusive count
       }
     }, 0);
   };
@@ -82,8 +83,10 @@ const Index = () => {
           // Single day
           days = (range.dayType === "half-morning" || range.dayType === "half-afternoon") ? 0.5 : 1;
         } else {
-          // Range of days
-          days = Math.ceil((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          // Range of days - calculate inclusive day count
+          const timeDiff = range.to.getTime() - range.from.getTime();
+          const daysDiff = Math.round(timeDiff / (1000 * 60 * 60 * 24));
+          days = daysDiff + 1; // +1 because we want inclusive count
         }
 
         return {
