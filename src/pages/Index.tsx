@@ -182,7 +182,7 @@ const Index = () => {
   const mergedRanges = mergeConsecutiveRanges(selectedRanges);
   const rangePeriods = mergedRanges.length;
 
-  const handleAddAltEVP = () => {
+  const handleAddEVP = () => {
     if (selectedEmployee && selectedRanges.length > 0) {
       // Create an EVP for each range
       const newEVPs = selectedRanges.map((range, index) => {
@@ -422,7 +422,7 @@ const Index = () => {
             </div>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-6">
+          <div className={`grid gap-6 py-6 ${expertMode ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
             {/* Left side - Form */}
             <div className="space-y-6">
               {/* Event Type Selection */}
@@ -480,9 +480,9 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Right side - Expert Mode or Preview */}
-            <div className="space-y-4">
-              {expertMode ? (
+            {/* Right side - Expert Mode only */}
+            {expertMode && (
+              <div className="space-y-4">
                 <div className="h-full">
                   <div className="flex items-center gap-2 mb-4">
                     <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
@@ -499,17 +499,8 @@ const Index = () => {
                     Variables générées automatiquement basées sur votre sélection
                   </div>
                 </div>
-              ) : (
-                <div className="h-full">
-                  <Label className="text-lg font-medium">Aperçu</Label>
-                  <div className="mt-4 bg-muted/50 rounded-lg p-4 h-96 overflow-auto">
-                    <div className="text-sm whitespace-pre-wrap">
-                      {generatePreviewText()}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -518,7 +509,7 @@ const Index = () => {
               Annuler
             </Button>
             <Button 
-              onClick={handleAddAltEVP}
+              onClick={handleAddEVP}
               disabled={selectedRanges.length === 0}
               className="bg-primary hover:bg-primary/90"
             >
