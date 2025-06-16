@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Calendar, Users, FileText, Edit, Trash2, CheckCircle } from "lucide-react";
+import { Plus, Calendar, Users, FileText, Edit, Trash2, CheckCircle, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { MultiRangeCalendar, DateRange } from "@/components/ui/multi-range-calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -51,6 +52,9 @@ const Index = () => {
   const [altComments, setAltComments] = useState("");
   const [altEvpType, setAltEvpType] = useState("conges-payes");
   const [lockedMonth] = useState(new Date(2025, 5, 1)); // June 2025
+  
+  // Expert mode state
+  const [expertMode, setExpertMode] = useState(false);
 
   const mergeConsecutiveRanges = (ranges: DateRange[]): DateRange[] => {
     if (ranges.length <= 1) return ranges;
@@ -107,6 +111,46 @@ const Index = () => {
         return total + daysDiff + 1; // +1 because we want inclusive count
       }
     }, 0);
+  };
+
+  const generateYAML = () => {
+    if (!selectedEmployee || selectedRanges.length === 0) return "";
+    
+    const mergedRanges = mergeConsecutiveRanges(selectedRanges);
+    let yaml = "";
+    
+    mergedRanges.forEach((range, index) => {
+      const startDate = format(range.from, "dd/MM/yyyy");
+      const endDate = format(range.to, "dd/MM/yyyy");
+      
+      let days: number;
+      if (range.from.getTime() === range.to.getTime()) {
+        days = (range.dayType === "half-morning" || range.dayType === "half-afternoon") ? 0.5 : 1;
+      } else {
+        const timeDiff = range.to.getTime() - range.from.getTime();
+        const daysDiff = Math.round(timeDiff / (1000 * 60 * 60 * 24));
+        days = daysDiff + 1;
+      }
+      
+      const typeKey = altEvpType === "conges-payes" ? "CP" : altEvpType === "heures-sup" ? "HS" : "PRIME";
+      
+      yaml += `salarié . absences . ${typeKey}: oui\n`;
+      yaml += `salarié . absences . ${typeKey} . collection: oui\n`;
+      yaml += `salarié . absences . ${typeKey} . date de début: "${startDate}"\n`;
+      yaml += `salarié . absences . ${typeKey} . date de fin: "${endDate}"\n`;
+      yaml += `salarié . absences . ${typeKey} . nombre: ${days}\n`;
+      
+      if (altComments) {
+        const comment = `${typeKey} LE ${startDate}${startDate !== endDate ? ` AU ${endDate}` : ''}`;
+        yaml += `salarié . éléments calculés du bulletin . commentaires . autres: "${comment}"\n`;
+      }
+      
+      if (index < mergedRanges.length - 1) {
+        yaml += "\n";
+      }
+    });
+    
+    return yaml;
   };
 
   const rangeDays = calculateRangeDays();
@@ -333,67 +377,132 @@ const Index = () => {
 
       {/* Alternative Quick Wizard Modal with Multi-Range Calendar */}
       <Dialog open={showAltWizard} onOpenChange={(open) => !open && resetAltWizard()}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Renseigner un événement de paie</DialogTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              Employé: <span className="font-medium">{selectedEmployee?.name}</span>
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>Ajouter un événement de paie</DialogTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Employé: <span className="font-medium">{selectedEmployee?.name}</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Code2 className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="expert-mode" className="text-sm font-medium">Mode Expert</Label>
+                <Switch
+                  id="expert-mode"
+                  checked={expertMode}
+                  onCheckedChange={setExpertMode}
+                />
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="py-6 space-y-6">
-            {/* Event Type Selection */}
-            <div className="space-y-4">
-              <Label>Type d'élément variable</Label>
-              <Select value={altEvpType} onValueChange={setAltEvpType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="conges-payes">Congés payés</SelectItem>
-                  <SelectItem value="heures-sup">Heures supplémentaires</SelectItem>
-                  <SelectItem value="prime">Prime</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-6">
+            {/* Left side - Form */}
+            <div className="space-y-6">
+              {/* Event Type Selection */}
+              <div className="space-y-4">
+                <Label>Type d'élément variable</Label>
+                <Select value={altEvpType} onValueChange={setAltEvpType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="conges-payes">Congés payés</SelectItem>
+                    <SelectItem value="heures-sup">Heures supplémentaires</SelectItem>
+                    <SelectItem value="prime">Prime</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Period Selection with Locked Month */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Label>Période de paie</Label>
+                  <Badge variant="outline" className="text-xs">
+                    {format(lockedMonth, "MMMM yyyy", { locale: fr })}
+                  </Badge>
+                </div>
+                
+                <MultiRangeCalendar
+                  selectedRanges={selectedRanges}
+                  onRangesChange={setSelectedRanges}
+                  lockedMonth={lockedMonth}
+                  className="border rounded-lg"
+                />
+                
+                {/* Counter/Recap */}
+                {rangeDays > 0 && (
+                  <div className="bg-primary/10 p-4 rounded-lg">
+                    <p className="text-sm font-medium text-center">
+                      {formatDaysCounter(rangeDays, rangePeriods)} - {getEVPTypeLabel(altEvpType)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Optional Comments */}
+              <div>
+                <Label htmlFor="alt-comments">Commentaires (optionnel)</Label>
+                <Textarea
+                  id="alt-comments"
+                  placeholder="Ajoutez une note si nécessaire..."
+                  value={altComments}
+                  onChange={(e) => setAltComments(e.target.value)}
+                  className="mt-1"
+                  rows={2}
+                />
+              </div>
             </div>
 
-            {/* Period Selection with Locked Month */}
+            {/* Right side - Expert Mode or Preview */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Label>Période de paie</Label>
-                <Badge variant="outline" className="text-xs">
-                  {format(lockedMonth, "MMMM yyyy", { locale: fr })}
-                </Badge>
-              </div>
-              
-              <MultiRangeCalendar
-                selectedRanges={selectedRanges}
-                onRangesChange={setSelectedRanges}
-                lockedMonth={lockedMonth}
-                className="border rounded-lg"
-              />
-              
-              {/* Counter/Recap */}
-              {rangeDays > 0 && (
-                <div className="bg-primary/10 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-center">
-                    {formatDaysCounter(rangeDays, rangePeriods)} - {getEVPTypeLabel(altEvpType)}
-                  </p>
+              {expertMode ? (
+                <div className="h-full">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+                      Mode Expert
+                    </Badge>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-4 h-96 overflow-auto">
+                    <p className="text-sm text-muted-foreground mb-2"># Entrez vos variables de paie ici...</p>
+                    <pre className="text-sm font-mono whitespace-pre-wrap">
+                      {generateYAML() || "# Sélectionnez des dates pour voir le YAML généré"}
+                    </pre>
+                  </div>
+                  <div className="mt-4 text-xs text-muted-foreground">
+                    Variables générées automatiquement basées sur votre sélection
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full">
+                  <Label className="text-lg font-medium">Aperçu</Label>
+                  <div className="mt-4 space-y-3">
+                    {selectedRanges.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">
+                        Sélectionnez des dates pour voir l'aperçu
+                      </p>
+                    ) : (
+                      mergeConsecutiveRanges(selectedRanges).map((range, index) => (
+                        <div key={index} className="border rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline">{getEVPTypeLabel(altEvpType)}</Badge>
+                          </div>
+                          <div className="text-sm">
+                            <p><span className="font-medium">Période:</span> {format(range.from, "dd/MM/yyyy")} - {format(range.to, "dd/MM/yyyy")}</p>
+                            <p><span className="font-medium">Durée:</span> {
+                              range.from.getTime() === range.to.getTime() 
+                                ? (range.dayType === "half-morning" || range.dayType === "half-afternoon" ? "0.5 jour" : "1 jour")
+                                : `${Math.round((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24)) + 1} jours`
+                            }</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
-            </div>
-
-            {/* Optional Comments */}
-            <div>
-              <Label htmlFor="alt-comments">Commentaires (optionnel)</Label>
-              <Textarea
-                id="alt-comments"
-                placeholder="Ajoutez une note si nécessaire..."
-                value={altComments}
-                onChange={(e) => setAltComments(e.target.value)}
-                className="mt-1"
-                rows={2}
-              />
             </div>
           </div>
 
