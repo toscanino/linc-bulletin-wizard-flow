@@ -25,6 +25,8 @@ export function MultiRangeCalendar({
   lockedMonth,
   className,
 }: MultiRangeCalendarProps) {
+  const [firstClickDate, setFirstClickDate] = React.useState<Date | null>(null);
+
   const isWeekend = (date: Date) => {
     const day = date.getDay();
     return day === 0 || day === 6; // Sunday or Saturday
@@ -45,6 +47,25 @@ export function MultiRangeCalendar({
   const handleDayClick = (date: Date) => {
     if (isWeekend(date)) return;
 
+    // If we have a first click date and this is a different date
+    if (firstClickDate && firstClickDate.getTime() !== date.getTime()) {
+      // If the second click is later than the first, create a range
+      if (date > firstClickDate) {
+        const newRange: DateRange = {
+          from: firstClickDate,
+          to: date,
+          dayType: "full",
+        };
+        onRangesChange([...selectedRanges, newRange]);
+        setFirstClickDate(null);
+        return;
+      } else {
+        // If second click is earlier, reset and treat as new first click
+        setFirstClickDate(date);
+        return;
+      }
+    }
+
     // Check if this is a single day that already exists
     const existingRangeIndex = selectedRanges.findIndex(range => 
       range.from.getTime() === date.getTime() && range.to.getTime() === date.getTime()
@@ -64,10 +85,17 @@ export function MultiRangeCalendar({
       }
 
       onRangesChange(updatedRanges);
+      setFirstClickDate(null);
       return;
     }
 
-    // Add new single day (not a range)
+    // If no first click date, set this as first click
+    if (!firstClickDate) {
+      setFirstClickDate(date);
+      return;
+    }
+
+    // Add new single day (fallback case)
     const newRange: DateRange = {
       from: date,
       to: date,
@@ -75,10 +103,12 @@ export function MultiRangeCalendar({
     };
     
     onRangesChange([...selectedRanges, newRange]);
+    setFirstClickDate(null);
   };
 
   const clearRanges = () => {
     onRangesChange([]);
+    setFirstClickDate(null);
   };
 
   const formatSelectedDays = () => {
@@ -110,6 +140,7 @@ export function MultiRangeCalendar({
     const rangeInfo = getDateRangeInfo(date);
     const isSelected = !!rangeInfo;
     const isWeekendDay = isWeekend(date);
+    const isFirstClick = firstClickDate && firstClickDate.getTime() === date.getTime();
 
     return (
       <button
@@ -118,7 +149,8 @@ export function MultiRangeCalendar({
           buttonVariants({ variant: "ghost" }),
           "h-9 w-9 p-0 font-normal relative overflow-hidden",
           isWeekendDay && "text-muted-foreground/50 bg-muted/20 cursor-not-allowed",
-          !isWeekendDay && "hover:bg-muted/50"
+          !isWeekendDay && "hover:bg-muted/50",
+          isFirstClick && "ring-2 ring-primary ring-offset-1"
         )}
         onClick={() => handleDayClick(date)}
         disabled={isWeekendDay}
@@ -126,24 +158,24 @@ export function MultiRangeCalendar({
         {/* Background fills for different day types */}
         {rangeInfo?.dayType === "half-morning" && (
           <>
-            <div className="absolute inset-0 bg-primary opacity-100" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
+            <div className="absolute inset-0 bg-slate-800 opacity-100" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
             <div className="absolute inset-0 bg-muted/20" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
           </>
         )}
         {rangeInfo?.dayType === "half-afternoon" && (
           <>
             <div className="absolute inset-0 bg-muted/20" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
-            <div className="absolute inset-0 bg-primary opacity-100" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
+            <div className="absolute inset-0 bg-slate-800 opacity-100" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
           </>
         )}
         {rangeInfo?.dayType === "full" && (
-          <div className="absolute inset-0 bg-primary opacity-100"></div>
+          <div className="absolute inset-0 bg-slate-800 opacity-100"></div>
         )}
         
         {/* Day number */}
         <span className={cn(
           "relative z-10 font-medium",
-          isSelected ? "text-primary-foreground" : "text-foreground"
+          isSelected ? "text-white" : "text-foreground"
         )}>
           {format(date, "d")}
         </span>
@@ -222,7 +254,8 @@ export function MultiRangeCalendar({
       </div>
       
       <div className="text-xs text-muted-foreground space-y-1">
-        <p>• Cliquez pour sélectionner une journée</p>
+        <p>• Cliquez pour sélectionner une journée ou commencer une plage</p>
+        <p>• Cliquez une seconde fois plus tard pour créer une plage</p>
         <p>• Cliquez plusieurs fois sur un jour pour demi-journées</p>
         <p>• Les week-ends sont non sélectionnables</p>
       </div>
