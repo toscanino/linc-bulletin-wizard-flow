@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { DayPicker, DayProps } from "react-day-picker";
@@ -183,8 +182,7 @@ export function MultiRangeCalendar({
         {/* Day number */}
         <span className={cn(
           "relative z-10 font-medium",
-          isSelected ? "text-primary-foreground" : 
-          (isInCurrentRange && !isSelected) ? "text-primary-foreground" : "text-foreground"
+          (isSelected || isInCurrentRange) ? "text-white" : "text-foreground"
         )}>
           {format(date, "d")}
         </span>
