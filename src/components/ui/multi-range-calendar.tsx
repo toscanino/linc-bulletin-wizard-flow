@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { DayPicker, DayProps } from "react-day-picker";
@@ -47,6 +48,34 @@ export function MultiRangeCalendar({
   const handleDayClick = (date: Date) => {
     if (isWeekend(date)) return;
 
+    // Check if this date is part of an existing range
+    const existingRangeIndex = selectedRanges.findIndex(range => 
+      date >= range.from && date <= range.to
+    );
+
+    if (existingRangeIndex >= 0) {
+      const currentRange = selectedRanges[existingRangeIndex];
+      const updatedRanges = [...selectedRanges];
+
+      // If it's a single day range, cycle through day types
+      if (currentRange.from.getTime() === currentRange.to.getTime()) {
+        if (!currentRange.dayType || currentRange.dayType === "full") {
+          updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-morning" };
+        } else if (currentRange.dayType === "half-morning") {
+          updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-afternoon" };
+        } else if (currentRange.dayType === "half-afternoon") {
+          updatedRanges.splice(existingRangeIndex, 1); // Remove
+        }
+      } else {
+        // For multi-day ranges, clicking removes the entire range
+        updatedRanges.splice(existingRangeIndex, 1);
+      }
+
+      onRangesChange(updatedRanges);
+      setFirstClickDate(null);
+      return;
+    }
+
     // If we have a first click date and this is a different date
     if (firstClickDate && firstClickDate.getTime() !== date.getTime()) {
       // If the second click is later than the first, create a range
@@ -64,29 +93,6 @@ export function MultiRangeCalendar({
         setFirstClickDate(date);
         return;
       }
-    }
-
-    // Check if this is a single day that already exists
-    const existingRangeIndex = selectedRanges.findIndex(range => 
-      range.from.getTime() === date.getTime() && range.to.getTime() === date.getTime()
-    );
-
-    if (existingRangeIndex >= 0) {
-      // Cycle through: full -> half-morning -> half-afternoon -> removed
-      const currentRange = selectedRanges[existingRangeIndex];
-      const updatedRanges = [...selectedRanges];
-
-      if (!currentRange.dayType || currentRange.dayType === "full") {
-        updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-morning" };
-      } else if (currentRange.dayType === "half-morning") {
-        updatedRanges[existingRangeIndex] = { ...currentRange, dayType: "half-afternoon" };
-      } else if (currentRange.dayType === "half-afternoon") {
-        updatedRanges.splice(existingRangeIndex, 1); // Remove
-      }
-
-      onRangesChange(updatedRanges);
-      setFirstClickDate(null);
-      return;
     }
 
     // If no first click date, set this as first click
@@ -256,7 +262,8 @@ export function MultiRangeCalendar({
       <div className="text-xs text-muted-foreground space-y-1">
         <p>• Cliquez pour sélectionner une journée ou commencer une plage</p>
         <p>• Cliquez une seconde fois plus tard pour créer une plage</p>
-        <p>• Cliquez plusieurs fois sur un jour pour demi-journées</p>
+        <p>• Cliquez plusieurs fois sur un jour seul pour demi-journées</p>
+        <p>• Cliquez sur une plage existante pour la supprimer</p>
         <p>• Les week-ends sont non sélectionnables</p>
       </div>
     </div>
