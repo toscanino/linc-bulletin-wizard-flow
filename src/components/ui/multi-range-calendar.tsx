@@ -138,27 +138,35 @@ export function MultiRangeCalendar({
         {...props}
         className={cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal relative",
+          "h-9 w-9 p-0 font-normal relative overflow-hidden",
           isWeekendDay && "text-muted-foreground/50 bg-muted/20 cursor-not-allowed",
-          isSelected && !isWeekendDay && "bg-primary text-primary-foreground hover:bg-primary",
-          isInCurrentSelection && !isWeekendDay && "bg-primary/50",
-          rangeInfo?.dayType === "half-morning" && "bg-primary/70",
-          rangeInfo?.dayType === "half-afternoon" && "bg-primary/70"
+          isSelected && !isWeekendDay && "text-primary-foreground",
+          isInCurrentSelection && !isWeekendDay && "bg-primary/50"
         )}
         onClick={() => handleDayClick(date)}
         disabled={isWeekendDay}
       >
-        {format(date, "d")}
+        {/* Background fills for half-days */}
         {rangeInfo?.dayType === "half-morning" && (
-          <div className="absolute top-0.5 left-1/2 transform -translate-x-1/2 text-[8px] font-bold text-primary-foreground">
-            M
+          <div className="absolute inset-0 bg-primary">
+            <div className="h-1/2 w-full bg-primary"></div>
+            <div className="h-1/2 w-full bg-transparent"></div>
           </div>
         )}
         {rangeInfo?.dayType === "half-afternoon" && (
-          <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 text-[8px] font-bold text-primary-foreground">
-            AM
+          <div className="absolute inset-0 bg-primary">
+            <div className="h-1/2 w-full bg-transparent"></div>
+            <div className="h-1/2 w-full bg-primary"></div>
           </div>
         )}
+        {rangeInfo?.dayType === "full" && (
+          <div className="absolute inset-0 bg-primary"></div>
+        )}
+        
+        {/* Day number */}
+        <span className="relative z-10">
+          {format(date, "d")}
+        </span>
       </button>
     );
   };
