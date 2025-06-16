@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { DayPicker, DayProps } from "react-day-picker";
@@ -162,21 +163,21 @@ export function MultiRangeCalendar({
         {/* Background fills for different day types */}
         {rangeInfo?.dayType === "half-morning" && (
           <>
-            <div className="absolute inset-0 bg-primary opacity-100" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
+            <div className="absolute inset-0 bg-slate-800" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
             <div className="absolute inset-0 bg-muted/20" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
           </>
         )}
         {rangeInfo?.dayType === "half-afternoon" && (
           <>
             <div className="absolute inset-0 bg-muted/20" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
-            <div className="absolute inset-0 bg-primary opacity-100" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
+            <div className="absolute inset-0 bg-slate-800" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
           </>
         )}
         {rangeInfo?.dayType === "full" && (
-          <div className="absolute inset-0 bg-primary opacity-100"></div>
+          <div className="absolute inset-0 bg-slate-800"></div>
         )}
         {!rangeInfo && isInCurrentRange && (
-          <div className="absolute inset-0 bg-primary opacity-30"></div>
+          <div className="absolute inset-0 bg-slate-600"></div>
         )}
         
         {/* Day number */}
