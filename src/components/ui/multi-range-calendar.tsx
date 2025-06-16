@@ -1,6 +1,6 @@
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { DayPicker, DayProps } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -154,17 +154,16 @@ export function MultiRangeCalendar({
 
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Lock className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium">
-            {format(lockedMonth, "MMMM yyyy", { locale: fr })}
-          </h3>
-        </div>
+      {/* Clear button above calendar */}
+      <div className="flex justify-center">
         <button
           onClick={clearRanges}
-          className="text-xs text-muted-foreground hover:text-foreground"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "text-sm px-4 py-2"
+          )}
         >
+          <RotateCcw className="h-4 w-4 mr-2" />
           Effacer
         </button>
       </div>
@@ -221,6 +220,12 @@ export function MultiRangeCalendar({
             </ul>
           </div>
         )}
+      </div>
+
+      {/* Month indicator with lock icon at bottom */}
+      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+        <Lock className="h-4 w-4" />
+        <span>{format(lockedMonth, "MMMM yyyy", { locale: fr })}</span>
       </div>
       
       <div className="text-xs text-muted-foreground space-y-1">
