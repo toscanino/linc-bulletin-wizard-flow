@@ -104,7 +104,7 @@ export function MultiRangeCalendar({
         updatedRanges.splice(exactSingleDayIndex, 1); // Remove
       }
 
-      // Apply merging after changes
+      // Apply merging after changes - this will merge any consecutive full-day ranges
       const mergedRanges = mergeConsecutiveRanges(updatedRanges);
       onRangesChange(mergedRanges);
       setFirstClickDate(null);
@@ -129,7 +129,7 @@ export function MultiRangeCalendar({
       };
       updatedRanges.push(newRange);
       
-      // Apply merging after changes
+      // Apply merging after changes - this will merge any consecutive full-day ranges
       const mergedRanges = mergeConsecutiveRanges(updatedRanges);
       onRangesChange(mergedRanges);
       setFirstClickDate(null);
@@ -145,6 +145,7 @@ export function MultiRangeCalendar({
           to: date,
           dayType: "full",
         };
+        // Apply merging - this will automatically merge with adjacent ranges
         const mergedRanges = mergeConsecutiveRanges([...selectedRanges, newRange]);
         onRangesChange(mergedRanges);
         setFirstClickDate(null);
@@ -156,6 +157,7 @@ export function MultiRangeCalendar({
           to: date,
           dayType: "full",
         };
+        // Apply merging - this will automatically merge with adjacent ranges
         const mergedRanges = mergeConsecutiveRanges([...selectedRanges, newRange]);
         onRangesChange(mergedRanges);
         setFirstClickDate(null);
@@ -170,6 +172,7 @@ export function MultiRangeCalendar({
       dayType: "full",
     };
     
+    // Apply merging - this will automatically merge with adjacent ranges
     const mergedRanges = mergeConsecutiveRanges([...selectedRanges, newRange]);
     onRangesChange(mergedRanges);
     setFirstClickDate(date); // Set for potential range creation
