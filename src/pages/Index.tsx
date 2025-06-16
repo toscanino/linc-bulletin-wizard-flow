@@ -153,6 +153,30 @@ const Index = () => {
     return yaml;
   };
 
+  const generatePreviewText = () => {
+    if (selectedRanges.length === 0) return "Sélectionnez des dates pour voir l'aperçu";
+    
+    const mergedRanges = mergeConsecutiveRanges(selectedRanges);
+    
+    return mergedRanges.map((range, index) => {
+      const startDate = format(range.from, "dd/MM/yyyy");
+      const endDate = format(range.to, "dd/MM/yyyy");
+      let days: number;
+      
+      if (range.from.getTime() === range.to.getTime()) {
+        days = (range.dayType === "half-morning" || range.dayType === "half-afternoon") ? 0.5 : 1;
+      } else {
+        const timeDiff = range.to.getTime() - range.from.getTime();
+        const daysDiff = Math.round(timeDiff / (1000 * 60 * 60 * 24));
+        days = daysDiff + 1;
+      }
+      
+      const daysText = days === Math.floor(days) ? `${days} jour${days > 1 ? 's' : ''}` : `${days} jour${days > 1 ? 's' : ''}`;
+      
+      return `${getEVPTypeLabel(altEvpType)} - ${startDate} - ${endDate} - ${daysText}`;
+    }).join('\n');
+  };
+
   const rangeDays = calculateRangeDays();
   // Fix: Get the actual merged ranges to count periods correctly
   const mergedRanges = mergeConsecutiveRanges(selectedRanges);
@@ -478,28 +502,10 @@ const Index = () => {
               ) : (
                 <div className="h-full">
                   <Label className="text-lg font-medium">Aperçu</Label>
-                  <div className="mt-4 space-y-3">
-                    {selectedRanges.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-8">
-                        Sélectionnez des dates pour voir l'aperçu
-                      </p>
-                    ) : (
-                      mergeConsecutiveRanges(selectedRanges).map((range, index) => (
-                        <div key={index} className="border rounded-lg p-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline">{getEVPTypeLabel(altEvpType)}</Badge>
-                          </div>
-                          <div className="text-sm">
-                            <p><span className="font-medium">Période:</span> {format(range.from, "dd/MM/yyyy")} - {format(range.to, "dd/MM/yyyy")}</p>
-                            <p><span className="font-medium">Durée:</span> {
-                              range.from.getTime() === range.to.getTime() 
-                                ? (range.dayType === "half-morning" || range.dayType === "half-afternoon" ? "0.5 jour" : "1 jour")
-                                : `${Math.round((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24)) + 1} jours`
-                            }</p>
-                          </div>
-                        </div>
-                      ))
-                    )}
+                  <div className="mt-4 bg-muted/50 rounded-lg p-4 h-96 overflow-auto">
+                    <pre className="text-sm whitespace-pre-wrap">
+                      {generatePreviewText()}
+                    </pre>
                   </div>
                 </div>
               )}
