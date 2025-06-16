@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { DayPicker, DayProps } from "react-day-picker";
@@ -25,6 +26,10 @@ export function MultiRangeCalendar({
   lockedMonth,
   className,
 }: MultiRangeCalendarProps) {
+  const [isSelecting, setIsSelecting] = React.useState(false);
+  const [rangeStart, setRangeStart] = React.useState<Date | null>(null);
+  const [previewRange, setPreviewRange] = React.useState<DateRange | null>(null);
+
   const isWeekend = (date: Date) => {
     const day = date.getDay();
     return day === 0 || day === 6; // Sunday or Saturday
@@ -42,8 +47,48 @@ export function MultiRangeCalendar({
     );
   };
 
-  const handleDayClick = (date: Date) => {
+  const isDateInPreview = (date: Date) => {
+    if (!previewRange) return false;
+    return date >= previewRange.from && date <= previewRange.to;
+  };
+
+  const handleMouseDown = (date: Date) => {
     if (isWeekend(date)) return;
+    
+    setIsSelecting(true);
+    setRangeStart(date);
+    setPreviewRange({ from: date, to: date });
+  };
+
+  const handleMouseEnter = (date: Date) => {
+    if (!isSelecting || !rangeStart || isWeekend(date)) return;
+    
+    const from = rangeStart <= date ? rangeStart : date;
+    const to = rangeStart <= date ? date : rangeStart;
+    
+    setPreviewRange({ from, to });
+  };
+
+  const handleMouseUp = () => {
+    if (!isSelecting || !rangeStart || !previewRange) return;
+    
+    // Add the selected range
+    const newRange: DateRange = {
+      from: previewRange.from,
+      to: previewRange.to,
+      dayType: "full",
+    };
+    
+    onRangesChange([...selectedRanges, newRange]);
+    
+    // Reset selection state
+    setIsSelecting(false);
+    setRangeStart(null);
+    setPreviewRange(null);
+  };
+
+  const handleDayClick = (date: Date) => {
+    if (isWeekend(date) || isSelecting) return;
 
     // Check if this is a single day that already exists
     const existingRangeIndex = selectedRanges.findIndex(range => 
@@ -76,6 +121,18 @@ export function MultiRangeCalendar({
     
     onRangesChange([...selectedRanges, newRange]);
   };
+
+  // Add global mouse up listener
+  React.useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isSelecting) {
+        handleMouseUp();
+      }
+    };
+
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [isSelecting, rangeStart, previewRange]);
 
   const clearRanges = () => {
     onRangesChange([]);
@@ -110,40 +167,49 @@ export function MultiRangeCalendar({
     const rangeInfo = getDateRangeInfo(date);
     const isSelected = !!rangeInfo;
     const isWeekendDay = isWeekend(date);
+    const isInPreview = isDateInPreview(date);
 
     return (
       <button
         {...props}
         className={cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal relative overflow-hidden",
+          "h-9 w-9 p-0 font-normal relative overflow-hidden select-none",
           isWeekendDay && "text-muted-foreground/50 bg-muted/20 cursor-not-allowed",
-          !isWeekendDay && "hover:bg-muted/50"
+          !isWeekendDay && "hover:bg-muted/50",
+          isSelecting && !isWeekendDay && "cursor-grabbing"
         )}
         onClick={() => handleDayClick(date)}
+        onMouseDown={() => handleMouseDown(date)}
+        onMouseEnter={() => handleMouseEnter(date)}
         disabled={isWeekendDay}
       >
+        {/* Preview range background */}
+        {isInPreview && !isSelected && (
+          <div className="absolute inset-0 bg-primary/30"></div>
+        )}
+
         {/* Background fills for different day types */}
         {rangeInfo?.dayType === "half-morning" && (
           <>
-            <div className="absolute inset-0 bg-primary opacity-100" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
+            <div className="absolute inset-0 bg-slate-800" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
             <div className="absolute inset-0 bg-muted/20" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
           </>
         )}
         {rangeInfo?.dayType === "half-afternoon" && (
           <>
             <div className="absolute inset-0 bg-muted/20" style={{clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)"}}></div>
-            <div className="absolute inset-0 bg-primary opacity-100" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
+            <div className="absolute inset-0 bg-slate-800" style={{clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)"}}></div>
           </>
         )}
         {rangeInfo?.dayType === "full" && (
-          <div className="absolute inset-0 bg-primary opacity-100"></div>
+          <div className="absolute inset-0 bg-slate-800"></div>
         )}
         
         {/* Day number */}
         <span className={cn(
           "relative z-10 font-medium",
-          isSelected ? "text-primary-foreground" : "text-foreground"
+          (isSelected || isInPreview) ? "text-white" : "text-foreground"
         )}>
           {format(date, "d")}
         </span>
@@ -223,6 +289,7 @@ export function MultiRangeCalendar({
       
       <div className="text-xs text-muted-foreground space-y-1">
         <p>• Cliquez pour sélectionner une journée</p>
+        <p>• Maintenez et glissez pour sélectionner une plage</p>
         <p>• Cliquez plusieurs fois sur un jour pour demi-journées</p>
         <p>• Les week-ends sont non sélectionnables</p>
       </div>
