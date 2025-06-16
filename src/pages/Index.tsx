@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Plus, Calendar, Users, FileText, Edit, Trash2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,6 +52,45 @@ const Index = () => {
   const [altEvpType, setAltEvpType] = useState("conges-payes");
   const [lockedMonth] = useState(new Date(2025, 5, 1)); // June 2025
 
+  const mergeConsecutiveRanges = (ranges: DateRange[]): DateRange[] => {
+    if (ranges.length <= 1) return ranges;
+
+    // Filter and sort full-day ranges by start date
+    const fullDayRanges = ranges.filter(range => range.dayType === "full" || !range.dayType)
+      .sort((a, b) => a.from.getTime() - b.from.getTime());
+    
+    // Keep non-full-day ranges as-is
+    const nonFullDayRanges = ranges.filter(range => range.dayType !== "full" && range.dayType);
+
+    if (fullDayRanges.length === 0) return nonFullDayRanges;
+
+    const merged: DateRange[] = [];
+    let currentRange = { ...fullDayRanges[0] };
+
+    for (let i = 1; i < fullDayRanges.length; i++) {
+      const nextRange = fullDayRanges[i];
+      
+      // Calculate the day after current range ends
+      const dayAfterCurrent = new Date(currentRange.to);
+      dayAfterCurrent.setDate(dayAfterCurrent.getDate() + 1);
+      
+      // If next range starts exactly one day after current range ends, merge them
+      if (nextRange.from.getTime() === dayAfterCurrent.getTime()) {
+        currentRange.to = nextRange.to;
+      } else {
+        // Can't merge, push current range and start new one
+        merged.push(currentRange);
+        currentRange = { ...nextRange };
+      }
+    }
+    
+    // Don't forget to push the last range
+    merged.push(currentRange);
+
+    // Combine with non-full-day ranges
+    return [...merged, ...nonFullDayRanges];
+  };
+
   const calculateRangeDays = () => {
     return selectedRanges.reduce((total, range) => {
       if (range.from.getTime() === range.to.getTime()) {
@@ -72,8 +110,9 @@ const Index = () => {
   };
 
   const rangeDays = calculateRangeDays();
-  // Fix: Use the actual number of ranges after merging, not before
-  const rangePeriods = selectedRanges.length;
+  // Fix: Get the actual merged ranges to count periods correctly
+  const mergedRanges = mergeConsecutiveRanges(selectedRanges);
+  const rangePeriods = mergedRanges.length;
 
   const handleAddAltEVP = () => {
     if (selectedEmployee && selectedRanges.length > 0) {
