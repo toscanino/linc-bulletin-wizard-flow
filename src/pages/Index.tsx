@@ -57,6 +57,9 @@ const Index = () => {
   // Alternative wizard state with date range
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [altComments, setAltComments] = useState("");
+  const [altEvpType, setAltEvpType] = useState("conges-payes");
+
+  // ... keep existing code (calculateDays, calculateRangeDays, days, rangeDays functions)
 
   const calculateDays = (start: string, end: string) => {
     if (!start || !end) return 0;
@@ -74,6 +77,8 @@ const Index = () => {
 
   const days = calculateDays(startDate, endDate);
   const rangeDays = calculateRangeDays(dateRange);
+
+  // ... keep existing code (handleNextStep, handlePrevStep, handleAddEVP functions)
 
   const handleNextStep = () => {
     if (currentStep < 3) {
@@ -109,7 +114,7 @@ const Index = () => {
       const newEVP: EVP = {
         id: Date.now().toString(),
         employeeId: selectedEmployee.id,
-        type: "conges-payes", // Fixed to paid leave for this flow
+        type: altEvpType,
         startDate: dateRange.from.toISOString().split('T')[0],
         endDate: dateRange.to.toISOString().split('T')[0],
         days: rangeDays,
@@ -134,7 +139,10 @@ const Index = () => {
     setShowAltWizard(false);
     setDateRange(undefined);
     setAltComments("");
+    setAltEvpType("conges-payes");
   };
+
+  // ... keep existing code (openWizard, openAltWizard, deleteEVP, getEVPsForEmployee, getEVPTypeLabel functions)
 
   const openWizard = (employee: Employee) => {
     setSelectedEmployee(employee);
@@ -311,7 +319,7 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Original Wizard Modal */}
+      {/* Original Wizard Modal - keep existing code */}
       <Dialog open={showWizard} onOpenChange={(open) => !open && resetWizard()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -498,16 +506,31 @@ const Index = () => {
       <Dialog open={showAltWizard} onOpenChange={(open) => !open && resetAltWizard()}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Ajout rapide - Congés payés</DialogTitle>
+            <DialogTitle>Ajout rapide - Élément variable</DialogTitle>
             <p className="text-sm text-muted-foreground mt-2">
               Employé: <span className="font-medium">{selectedEmployee?.name}</span>
             </p>
           </DialogHeader>
 
           <div className="py-6 space-y-6">
+            {/* Event Type Selection */}
+            <div className="space-y-4">
+              <Label>Type d'élément variable</Label>
+              <Select value={altEvpType} onValueChange={setAltEvpType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="conges-payes">Congés payés</SelectItem>
+                  <SelectItem value="heures-sup">Heures supplémentaires</SelectItem>
+                  <SelectItem value="prime">Prime</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Date Range Picker */}
             <div className="space-y-4">
-              <Label>Période d'absence</Label>
+              <Label>Période</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -547,7 +570,7 @@ const Index = () => {
               {rangeDays > 0 && (
                 <div className="bg-primary/10 p-3 rounded-lg">
                   <p className="text-sm font-medium">
-                    Durée: {rangeDays} jour{rangeDays > 1 ? 's' : ''} de congés payés
+                    Durée: {rangeDays} jour{rangeDays > 1 ? 's' : ''} - {getEVPTypeLabel(altEvpType)}
                   </p>
                 </div>
               )}
@@ -577,7 +600,7 @@ const Index = () => {
               disabled={!dateRange?.from || !dateRange?.to}
               className="bg-primary hover:bg-primary/90"
             >
-              Ajouter les congés
+              Ajouter l'élément
             </Button>
           </div>
         </DialogContent>
