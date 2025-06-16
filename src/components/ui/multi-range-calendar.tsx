@@ -52,7 +52,7 @@ export function MultiRangeCalendar({
     const merged: DateRange[] = [];
 
     for (const range of sortedRanges) {
-      // Only merge full-day ranges (single days or existing ranges)
+      // Only merge full-day ranges
       if (range.dayType !== "full") {
         merged.push(range);
         continue;
@@ -60,16 +60,21 @@ export function MultiRangeCalendar({
 
       // Check if this range can be merged with the last range in merged
       const lastMerged = merged[merged.length - 1];
-      if (
-        lastMerged &&
-        lastMerged.dayType === "full" &&
-        range.from.getTime() - lastMerged.to.getTime() === 24 * 60 * 60 * 1000 // Exactly one day after the last range
-      ) {
-        // Extend the last range
-        lastMerged.to = range.to;
-      } else {
-        merged.push(range);
+      if (lastMerged && lastMerged.dayType === "full") {
+        // Calculate the end of the last merged range + 1 day
+        const nextDay = new Date(lastMerged.to);
+        nextDay.setDate(nextDay.getDate() + 1);
+        
+        // If the current range starts exactly the day after the last merged range ends
+        if (range.from.getTime() === nextDay.getTime()) {
+          // Extend the last range to include this range
+          lastMerged.to = range.to;
+          continue;
+        }
       }
+      
+      // If we can't merge, add as new range
+      merged.push(range);
     }
 
     return merged;
